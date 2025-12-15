@@ -1,0 +1,4 @@
+package com.examify.view.components;
+
+public class ScheduleTableView {
+}
