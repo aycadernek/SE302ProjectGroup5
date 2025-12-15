@@ -6,13 +6,11 @@ import java.util.Objects;
 
 public class Student {
     String id;
-    String name;
 
     private List<Course> enrolledCourses;
 
-    public Student(String id, String name) {
+    public Student(String id) {
         this.id = id;
-        this.name = name;
         this.enrolledCourses = new ArrayList<>();
     }
 
@@ -26,9 +24,6 @@ public class Student {
         return id;
     }
 
-    public String getName() {
-        return name;
-    }
 
     public List<Course> getEnrolledCourses() {
         return enrolledCourses;
@@ -51,6 +46,6 @@ public class Student {
 
     @Override
     public String toString() {
-        return name + " (" + id + ") ";
+        return id;
     }
 }

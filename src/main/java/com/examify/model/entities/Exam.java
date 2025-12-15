@@ -33,6 +33,6 @@ public class Exam {
     @Override
     public String toString() {
         return String.format("Day: %d, Time Slot: %d | %s -> %s",
-                day, timeSlot, course.getCode(), classroom.getName());
+                day, timeSlot, course.getCode(), classroom.getId());
     }
 }

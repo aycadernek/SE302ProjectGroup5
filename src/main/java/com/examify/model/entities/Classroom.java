@@ -3,12 +3,11 @@ package com.examify.model.entities;
 public class Classroom {
 
     private String id;
-    private String name;
     private int capacity;
 
+    public Classroom(){}
     public Classroom(String id, String name, int capacity) {
         this.id = id;
-        this.name = name;
         this.capacity = capacity;
     }
 
@@ -16,8 +15,11 @@ public class Classroom {
         return id;
     }
 
-    public String getName() {
-        return name;
+    public void setId(String id) {
+        this.id = id;
+    }
+    public void setCapacity(int capacity){
+        this.capacity = capacity;
     }
 
     public int getCapacity() {
@@ -26,6 +28,6 @@ public class Classroom {
 
     @Override
     public String toString() {
-        return name + " (Capacity: " + capacity + ")";
+        return id + " (Capacity: " + capacity + ")";
     }
 }
