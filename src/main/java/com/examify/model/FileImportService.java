@@ -85,6 +85,54 @@ public class FileImportService {
     }
 
     //4. ENROLLMENTS
-    public void importEnrollmentsFile() {
+    public void importEnrollmentsFile(String attendanceFile, List<Course> existingCourses) {
+        try (BufferedReader br = new BufferedReader(new FileReader(attendanceFile))) {
+            String line;
+            String currentCourseId = null;
+
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+
+                // Skip empty lines
+                if (line.isEmpty()) continue;
+
+                // Check if this line is a list of students (starts with [ )
+                if (line.startsWith("['")) {
+                    if (currentCourseId != null) {
+
+                        // remove [ ] and ' characters
+                        String cleanLine = line.replace("[", "").replace("]", "").replace("'", "");
+
+                        // Split to get IDs
+                        String[] studentIds = cleanLine.split(",");
+
+                        // Find the matching course in our list
+                        for (Course c : existingCourses) {
+                            if (c.getCode().equals(currentCourseId)) {
+
+                                // Add each student ID to the course
+                                for (String sId : studentIds) {
+                                    String trimmedID = sId.trim();
+                                    // Make sure ID is not empty
+                                    if (!trimmedID.isEmpty()) {
+                                        Student s = new Student(trimmedID);
+                                        c.addStudent(s);
+                                    }
+                                }
+                                // We found, so stop searching
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // If it's not a list, it is Course Code (CourseCode_01)
+                    currentCourseId = line;
+                }
+            }
+            System.out.println("Enrollments loaded.");
+
+        } catch (IOException e) {
+            e.printStackTrace(); //we can print to the error file
+        }
     }
 }
