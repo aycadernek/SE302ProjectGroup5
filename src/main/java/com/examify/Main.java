@@ -19,24 +19,39 @@ public class Main {
         //test file import
         FileImportService importService = new FileImportService();
 
+//        System.out.println("--- JSON IMPORT TEST ---");
+//
+//        try {
+//            List<Student> students = importService.importStudentsJson("data_students.json");
+//            List<Classroom> classrooms = importService.importClassroomsJson("data_classrooms.json");
+//            List<Course> courses = importService.importCoursesJson("data_courses.json");
+//            importService.importEnrollmentsJson("data_enrollments.json", courses);
+//            System.out.println("\n--- FINAL DATA CHECK ---");
+//            for (Course c : courses) {
+//                System.out.println("Course: " + c.getCode() + " | Number of Enrolled Students: " + c.getEnrolledStudents().size());
+//            }
+//        } catch (Exception e) {
+//            System.err.println(e.getMessage());
+//        }
+
         manager.clearAllData();
 
         try {
-            List<Student> students = importService.importStudentsFile("sampleData_AllStudents.csv");
+            List<Student> students = importService.importStudentsCSVFile("sampleData_AllStudents.csv");
             for (Student s : students) {
                 manager.addStudent(s);
             }
             System.out.println("Students loaded: " + manager.getStudents().size());
 
-            List<Classroom> classrooms = importService.importClassroomsFile("sampleData_AllClassroomsAndTheirCapacities.csv");
+            List<Classroom> classrooms = importService.importClassroomsCSVFile("sampleData_AllClassroomsAndTheirCapacities.csv");
             for (Classroom c : classrooms) {
                 manager.addClassroom(c);
             }
             System.out.println("Classrooms loaded: " + manager.getClassrooms().size());
 
-            List<Course> courses = importService.importCoursesFile("sampleData_AllCourses.csv");
+            List<Course> courses = importService.importCoursesCSVFile("sampleData_AllCourses.csv");
 
-            importService.importEnrollmentsFile("sampleData_AllAttendanceLists.csv", courses);
+            importService.importEnrollmentsCSVFile("sampleData_AllAttendanceLists.csv", courses);
 
             for (Course co : courses) {
                 manager.addCourse(co);

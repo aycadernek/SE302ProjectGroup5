@@ -5,8 +5,14 @@ import java.util.List;
 import java.util.Objects;
 
 public class Course {
+
     private String code;
     private List<Student> enrolledStudents;
+
+    public Course() {
+        // empty constructor for json import
+        this.enrolledStudents = new ArrayList<>();
+    }
 
     public Course(String code) {
         this.code = code;
