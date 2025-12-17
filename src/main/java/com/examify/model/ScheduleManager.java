@@ -30,7 +30,7 @@ public class ScheduleManager {
         this.masterSchedule = new ArrayList<>();
     }
 
-    // Singleton getInstance()
+    // singleton getInstance()
     public static ScheduleManager getInstance() {
         if (instance == null) {
             instance = new ScheduleManager();
