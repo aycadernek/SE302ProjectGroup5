@@ -79,7 +79,7 @@ public class FileImportService {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace(); //we can print to the error file
+            System.out.println("Courses file could not read: " + e.getMessage()); //we can print to the error file
         }
         return courses;
     }
@@ -132,7 +132,7 @@ public class FileImportService {
             System.out.println("Enrollments loaded.");
 
         } catch (IOException e) {
-            e.printStackTrace(); //we can print to the error file
+            System.out.println("Enrollments file could not read: " + e.getMessage()); //we can print to the error file
         }
     }
 }
