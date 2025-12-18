@@ -1,22 +1,10 @@
 [
-  {
-    "id": "C_101",
-    "capacity": 30
-  },
-  {
-    "id": "C_102",
-    "capacity": 30
-  },
-  {
-    "id": "M_205_LAB",
-    "capacity": 20
-  },
-  {
-    "id": "C_202",
-    "capacity": 150
-  },
-  {
-    "id": "C_207",
-    "capacity": 90
-  }
+  { "id": "A1", "capacity": 100 },
+  { "id": "A2", "capacity": 100 },
+  { "id": "C1", "capacity": 50 },
+  { "id": "C2", "capacity": 50 },
+  { "id": "C3", "capacity": 40 },
+  { "id": "C4", "capacity": 40 },
+  { "id": "L1", "capacity": 30 },
+  { "id": "L2", "capacity": 30 }
 ]
