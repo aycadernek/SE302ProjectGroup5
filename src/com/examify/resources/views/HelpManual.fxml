@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="700.0"
+            style="-fx-background-color: #8ab8ff; -fx-padding: 10; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 4);"
+            xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="com.examify.controller.HelpManualController">
+
+    <top>
+        <Label style="-fx-font-size: 21px; -fx-font-weight: bold;" text="%menu.helpManual" BorderPane.alignment="CENTER"/>
+    </top>
+
+    <center>
+        <VBox style="-fx-background-color: #a8c6f4; -fx-padding: 15; -fx-background-radius: 6;">
+            <BorderPane.margin>
+                <Insets bottom="15" left="0" right="0" top="15" />
+            </BorderPane.margin>
+            <TextArea fx:id="helpManualTextArea" editable="false" wrapText="true" prefHeight="500.0" />
+        </VBox>
+    </center>
+
+</BorderPane>

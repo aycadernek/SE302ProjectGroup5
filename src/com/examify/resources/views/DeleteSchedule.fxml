@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane maxHeight="855000.0" maxWidth="450.0" minHeight="550.0" minWidth="350.0" prefHeight="620.0" prefWidth="400.0" style="-fx-background-color: #8ab8ff; -fx-padding: 10; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 10, 0, 0, 4);" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.examify.controller.DeleteScheduleController">
+
+    <top>
+        <Label style="-fx-font-size: 21px; -fx-font-weight: bold;" text="%label.deleteSchedule" BorderPane.alignment="CENTER" />
+    </top>
+
+    <center>
+        <VBox spacing="12" style="-fx-background-color: #a8c6f4; -fx-padding: 15; -fx-background-radius: 6;">
+            <BorderPane.margin>
+                <Insets bottom="15" left="0" right="0" top="15" />
+            </BorderPane.margin>
+
+            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="%label.selectSchedule" />
+            <ComboBox fx:id="scheduleSelector" prefWidth="Infinity" />
+
+            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="%label.name" />
+            <TextField fx:id="txtName" editable="false" promptText="%label.name" />
+
+            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="%label.slotsPerDay"/>
+            <HBox spacing="8">
+                <VBox HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="%label.min"/>
+                        <TextField fx:id="txtMinSlotNumber" promptText="%label.minSlotNumber" editable="false"/>
+                    </children>
+                </VBox>
+                <VBox HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label text="%label.max"/>
+                        <TextField fx:id="txtMaxSlotNumber" promptText="%label.maxSlotNumber" editable="false"/>
+                    </children>
+                </VBox>
+            </HBox>
+
+            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="%label.startDate" />
+            <DatePicker fx:id="startDatePicker" style="-fx-opacity: 1; -fx-background-color: white;" disable="true" editable="false" prefWidth="Infinity" promptText="%label.startDate" />
+
+            <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="%label.endDate" />
+            <DatePicker fx:id="endDatePicker" style="-fx-opacity: 1; -fx-background-color: white;" disable="true" editable="false" prefWidth="Infinity" promptText="%label.endDate" />
+
+            <Label style="-fx-padding: 5 0 0 0; -fx-font-weight: bold; -fx-font-size: 14px;" text="%label.scheduleData"/>
+            <HBox alignment="CENTER_LEFT" spacing="8">
+                <Label prefWidth="100" text="%label.courseList" />
+                <TextField fx:id="txtCourseList" editable="false" promptText="%label.courseList" />
+                <Button fx:id="btnImportCourses" disable="true" text="%button.import" />
+            </HBox>
+            <HBox alignment="CENTER_LEFT" spacing="8">
+                <Label prefWidth="100" text="%label.classroomList" />
+                <TextField fx:id="txtClassroomList" editable="false" promptText="%label.classroomList" />
+                <Button fx:id="btnImportClassrooms" disable="true" text="%button.import" />
+            </HBox>
+        </VBox>
+    </center>
+
+    <bottom>
+        <Button fx:id="deleteButton" minWidth="150.0" prefWidth="150.0" style="-fx-font-weight: bold; -fx-font-size: 21px; -fx-background-color: #ff5d55;" styleClass="action-button" text="%button.delete" BorderPane.alignment="CENTER" />
+    </bottom>
+
+</BorderPane>

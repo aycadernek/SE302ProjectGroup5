@@ -9,8 +9,5 @@
         <module name="Examify" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="examify" target="21" />
-    </bytecodeTargetLevel>
   </component>
 </project>

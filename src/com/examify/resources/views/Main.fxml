@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.RadioMenuItem?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane maxHeight="650" maxWidth="1100" prefHeight="650" prefWidth="1100" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.examify.controller.MainController">
+
+    <top>
+        <VBox spacing="0" style="-fx-background-color: #004e63;">
+            <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 4 8 4 8;">
+                <Label style="-fx-font-weight: bold; -fx-font-size: 22; -fx-text-fill: white;" text="EXAMIFY">
+                    <font><Font size="16.0" /></font>
+                </Label>
+                <Region HBox.hgrow="ALWAYS" />
+            </HBox>
+
+            <MenuBar prefHeight="30.0" style="-fx-background-color: #d6d6d6; -fx-padding: 0; -fx-font-size: 14; -fx-font-weight: bold;">
+                <Menu fx:id="menuSchedule" text="%menu.schedule">
+                    <MenuItem fx:id="menuNewSchedule" text="%menu.newSchedule" />
+                    <MenuItem fx:id="btnEditSchedule" text="%menu.editSchedule" />
+                    <MenuItem fx:id="btnDeleteSchedule" text="%menu.deleteSchedule" />
+                    <MenuItem fx:id="btnExportSchedule" text="%menu.exportSchedule" />
+                </Menu>
+
+                <Menu fx:id="menuLanguage" text="%menu.language">
+                    <RadioMenuItem fx:id="btnTurkishLang" text="Turkish" />
+                    <RadioMenuItem fx:id="btnEnglishLang" text="English" />
+                </Menu>
+
+                <Menu fx:id="menuHelp" text="%menu.help">
+                    <MenuItem fx:id="btnHelpItem" text="%menu.about" />
+                    <MenuItem fx:id="btnHelpItem1" text="%menu.helpManual" />
+                </Menu>
+            </MenuBar>
+        </VBox>
+    </top>
+
+    <center>
+        <HBox spacing="10" style="-fx-padding: 15; -fx-background-color: #cde3ff;">
+
+            <VBox prefWidth="280" spacing="10">
+                <ComboBox fx:id="scheduleCombo" prefWidth="280" promptText="%schedule.select" style="-fx-font-weight: bold;" />
+
+                <VBox spacing="2" style="-fx-background-color: #113575; -fx-padding: 10; -fx-border-color: black; -fx-border-width: 1;">
+                    <Label fx:id="relatedDataLabel" style="-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16;" text="%label.scheduleInfo" />
+
+                    <VBox prefHeight="398.0" prefWidth="258" spacing="5" style="-fx-background-color: #a6c4ff; -fx-padding: 5;">
+                        <GridPane hgap="5" prefWidth="248" vgap="5">
+                            <columnConstraints>
+                                <ColumnConstraints prefWidth="100" />
+                                <ColumnConstraints prefWidth="20" />
+                                <ColumnConstraints prefWidth="110" />
+                            </columnConstraints>
+                            <rowConstraints>
+                                <RowConstraints prefHeight="40" />
+                                <RowConstraints prefHeight="40" />
+                                <RowConstraints prefHeight="40" />
+                                <RowConstraints prefHeight="40" />
+                                <RowConstraints prefHeight="40" />
+                                <RowConstraints prefHeight="120" />
+                            </rowConstraints>
+
+                            <Label fx:id="dateIntervalLabel" alignment="TOP_LEFT" prefWidth="100" style="-fx-font-weight: bold;" text="%label.dateInterval" wrapText="true" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                            <Label text="→" alignment="CENTER" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                            <Label fx:id="dateIntervalValue" style="-fx-font-weight: bold;" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+
+                            <Label fx:id="slotNumberLabel" alignment="TOP_LEFT" prefWidth="100" style="-fx-font-weight: bold;" text="%label.slotNumber" wrapText="true" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                            <Label text="→" alignment="CENTER" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                            <Label fx:id="slotNumberValue" style="-fx-font-weight: bold;" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+
+                            <Label fx:id="classroomListLabel" alignment="TOP_LEFT" prefWidth="100" style="-fx-font-weight: bold;" text="%label.totalClassroomCount" wrapText="true" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                            <Label text="→" alignment="CENTER" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                            <Label fx:id="classroomListValue" style="-fx-font-weight: bold;" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+
+                            <Label fx:id="totalStudentsLabel" alignment="TOP_LEFT" prefWidth="100" style="-fx-font-weight: bold;" text="%label.totalStudents" wrapText="true" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                            <Label text="→" alignment="CENTER" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                            <Label fx:id="totalStudentsValue" style="-fx-font-weight: bold;" GridPane.columnIndex="2" GridPane.rowIndex="3" />
+
+                            <Label fx:id="numCoursesLabel" alignment="TOP_LEFT" prefWidth="100" style="-fx-font-weight: bold;" text="%label.numCourses" wrapText="true" GridPane.columnIndex="0" GridPane.rowIndex="4" />
+                            <Label text="→" alignment="CENTER" GridPane.columnIndex="1" GridPane.rowIndex="4" />
+                            <Label fx:id="numCoursesValue" style="-fx-font-weight: bold;" GridPane.columnIndex="2" GridPane.rowIndex="4" />
+
+                            <Label fx:id="resolvedConflictsLabel" alignment="TOP_LEFT" prefWidth="100" style="-fx-font-weight: bold;" text="%label.resolvedConflicts" wrapText="true" GridPane.valignment="TOP" GridPane.columnIndex="0" GridPane.rowIndex="5" />
+                            <Label text="→" alignment="CENTER" GridPane.valignment="TOP" GridPane.columnIndex="1" GridPane.rowIndex="5" />
+                            <Label fx:id="resolvedConflictsValue" alignment="TOP_LEFT" prefHeight="70" style="-fx-font-weight: bold;" wrapText="true" GridPane.valignment="TOP" GridPane.columnIndex="2" GridPane.rowIndex="5" />
+                        </GridPane>
+                    </VBox>
+                </VBox>
+            </VBox>
+
+            <VBox spacing="8" style="-fx-border-width: 0; -fx-background-color: #ff5d5e; -fx-padding: 10; -fx-background-radius: 15;" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+
+                <HBox alignment="CENTER" spacing="4" style="-fx-padding: 5;">
+                    <TextField fx:id="searchField" promptText="%search.prompt" style="-fx-border-radius: 3; -fx-background-radius: 3;" HBox.hgrow="ALWAYS" />
+                    <ComboBox fx:id="searchTypeCombo" prefWidth="160" promptText="%search.type" />
+                    <Button fx:id="btnSearch" graphicTextGap="0.0" prefHeight="32.0" prefWidth="35.0" style="-fx-font-size: 10;" text="🔍">
+                  <font>
+                     <Font size="10.0" />
+                  </font></Button>
+                </HBox>
+
+                <TableView fx:id="scheduleTable" style="                                -fx-border-color: pink;                                -fx-border-width: 2;                                -fx-background-color: #ffe1f0;                                -fx-selection-bar: #ffbaba;                            " VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="colCourse" prefWidth="140" text="%column.courseName" />
+                        <TableColumn fx:id="colClassroom" prefWidth="100" text="%column.classroom" />
+                        <TableColumn fx:id="colSlot" prefWidth="70" text="%column.slot" />
+                        <TableColumn fx:id="colDate" prefWidth="100" text="%column.date" />
+                        <TableColumn fx:id="colStudents" prefWidth="130" text="%column.students" />
+                    </columns>
+                </TableView>
+            </VBox>
+        </HBox>
+    </center>
+</BorderPane>

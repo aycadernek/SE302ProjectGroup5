@@ -1,0 +1,43 @@
+
+.label {
+    -fx-font-weight: bold;
+}
+
+.button {
+    -fx-padding: 6 12 6 12; 
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-font-weight: bold;
+}
+
+.action-button {
+    -fx-background-color: #ff8a8a; 
+    -fx-text-fill: white;
+}
+
+.action-button:hover {
+    -fx-background-color: #e57c7c; 
+}
+
+.action-button:pressed {
+    -fx-background-color: #d36a6a; 
+    -fx-scale-x: 1;
+    -fx-scale-y: 1; 
+}
+
+
+.button:pressed {
+    -fx-background-color: derive(-fx-base, -10%); 
+    -fx-scale-x: 1; 
+    -fx-scale-y: 1; 
+}
+
+
+.table-view .cell {
+    -fx-font-size: 14px;
+}
+
+
+.text-field .text, .combo-box .text {
+    -fx-font-weight: normal;
+}
