@@ -29,7 +29,7 @@ public class ExportScheduleController {
 
     @FXML
     public void initialize() {
-        fileTypeSelector.setItems(FXCollections.observableArrayList("CSV", "XLSX", "PDF"));
+        fileTypeSelector.setItems(FXCollections.observableArrayList("CSV", "XLSX", "PDF", "JSON"));
         fileTypeSelector.getSelectionModel().selectFirst();
 
         scheduleSelector.setConverter(new StringConverter<>() {
@@ -82,6 +82,9 @@ public class ExportScheduleController {
                         break;
                     case "PDF":
                         ExportService.exportToPDF(selectedSchedule, file.getAbsolutePath());
+                        break;
+                    case "JSON":
+                        ExportService.exportToJSON(selectedSchedule, file.getAbsolutePath());
                         break;
                 }
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule exported successfully to " + file.getAbsolutePath());

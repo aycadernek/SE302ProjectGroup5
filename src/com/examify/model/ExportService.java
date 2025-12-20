@@ -10,6 +10,7 @@ import com.itextpdf.layout.element.Table;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +18,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 public class ExportService {
-
+     
     public static void exportToPDF(Schedule schedule, String outputPath) throws IOException {
         PdfWriter writer = new PdfWriter(outputPath);
         PdfDocument pdf = new PdfDocument(writer);
@@ -74,13 +75,13 @@ public class ExportService {
 
     public static void exportToCSV(Schedule schedule, String outputPath) throws IOException {
         StringBuilder csv = new StringBuilder();
-        csv.append("Course,Date,Slot,Classroom,Capacity\n");
+        csv.append("Course;Date;Slot;Classroom;Capacity\n");
 
         for (Exam exam : schedule.getExams()) {
-            csv.append(exam.getCourseName()).append(",")
-               .append(exam.getExamDate()).append(",")
-               .append(exam.getSlot()).append(",")
-               .append(exam.getRoomNumber()).append(",")
+            csv.append(exam.getCourseName()).append(";")
+               .append(exam.getExamDate()).append(";")
+               .append(exam.getSlot()).append(";")
+               .append(exam.getRoomNumber()).append(";")
                .append(exam.getCapacity()).append("\n");
         }
 
