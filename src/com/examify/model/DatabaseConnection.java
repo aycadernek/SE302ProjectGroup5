@@ -221,16 +221,10 @@ public class DatabaseConnection {
     }
     
     public void deleteSchedule(int scheduleId) throws SQLException {
-        String deleteExamsSQL = "DELETE FROM exams WHERE schedule_id = ?";
         String deleteScheduleSQL = "DELETE FROM schedules WHERE schedule_id = ?";
         
         try {
             connection.setAutoCommit(false);
-            
-            try (PreparedStatement pstmt = connection.prepareStatement(deleteExamsSQL)) {
-                pstmt.setInt(1, scheduleId);
-                pstmt.executeUpdate();
-            }
             
             try (PreparedStatement pstmt = connection.prepareStatement(deleteScheduleSQL)) {
                 pstmt.setInt(1, scheduleId);
@@ -476,6 +470,49 @@ public class DatabaseConnection {
         
         return courses;
     }
+
+    public List<Course> loadCourses(List<String> courseCodes) throws SQLException {
+        if (courseCodes == null || courseCodes.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(courseCodes.size(), "?"));
+        String courseSql = "SELECT * FROM courses WHERE course_code IN (" + placeholders + ")";
+        Map<String, Course> coursesMap = new HashMap<>();
+
+        try (PreparedStatement stmt = connection.prepareStatement(courseSql)) {
+            for (int i = 0; i < courseCodes.size(); i++) {
+                stmt.setString(i + 1, courseCodes.get(i));
+            }
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String courseCode = rs.getString("course_code");
+                Course course = new Course(courseCode);
+                coursesMap.put(courseCode, course);
+            }
+        }
+
+        String enrollmentSql = "SELECT course_code, student_id FROM enrollments WHERE course_code IN (" + placeholders + ")";
+        try (PreparedStatement stmt = connection.prepareStatement(enrollmentSql)) {
+            for (int i = 0; i < courseCodes.size(); i++) {
+                stmt.setString(i + 1, courseCodes.get(i));
+            }
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String courseCode = rs.getString("course_code");
+                Course course = coursesMap.get(courseCode);
+                if (course != null) {
+                    if (course.getEnrolledStudents() == null) {
+                        course.setEnrolledStudents(new HashSet<>());
+                    }
+                    course.getEnrolledStudents().add(rs.getString("student_id"));
+                }
+            }
+        }
+
+        return new ArrayList<>(coursesMap.values());
+    }
+    
     
     public List<Classroom> loadAllClassrooms() throws SQLException {
         String sql = "SELECT * FROM classrooms ORDER BY classroom_id";
@@ -495,6 +532,29 @@ public class DatabaseConnection {
         
         return classrooms;
     }
+
+    public List<Classroom> loadClassrooms(List<String> classroomIds) throws SQLException {
+        if (classroomIds == null || classroomIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        String placeholders = String.join(",", Collections.nCopies(classroomIds.size(), "?"));
+        String sql = "SELECT * FROM classrooms WHERE classroom_id IN (" + placeholders + ")";
+        List<Classroom> classrooms = new ArrayList<>();
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            for (int i = 0; i < classroomIds.size(); i++) {
+                stmt.setString(i + 1, classroomIds.get(i));
+            }
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                classrooms.add(new Classroom(
+                    rs.getString("classroom_id"),
+                    rs.getInt("capacity")
+                ));
+            }
+        }
+        return classrooms;
+    }
+    
     
     public List<Exam> searchExams(SearchCriteria criteria) throws SQLException {
         StringBuilder sql = new StringBuilder("""

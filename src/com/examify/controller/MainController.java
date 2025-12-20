@@ -21,9 +21,13 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.HashSet;
+import java.util.stream.Collectors;
+
 
 public class MainController {
 
@@ -175,16 +179,29 @@ public class MainController {
     public void refreshData() {
         Schedule selected = scheduleCombo.getValue();
         scheduleCombo.setItems(FXCollections.observableArrayList(scheduleManager.getAllSchedules()));
+
         if (selected != null) {
-            scheduleCombo.getSelectionModel().select(selected);
+            Optional<Schedule> reselected = scheduleCombo.getItems().stream()
+                .filter(s -> s.getScheduleId() == selected.getScheduleId())
+                .findFirst();
+            if (reselected.isPresent()) {
+                scheduleCombo.getSelectionModel().select(reselected.get());
+            } else {
+                scheduleCombo.getSelectionModel().selectFirst();
+            }
         } else {
             scheduleCombo.getSelectionModel().selectFirst();
         }
         
-        Schedule current = scheduleManager.getCurrentSchedule();
+        Schedule current = scheduleCombo.getValue();
+        scheduleManager.setCurrentSchedule(current);
+
         if(current != null){
             scheduleTable.setItems(FXCollections.observableArrayList(current.getExams()));
             populateInfoPanel(current);
+        } else {
+            scheduleTable.getItems().clear();
+            populateInfoPanel(null);
         }
     }
 
@@ -302,14 +319,29 @@ public class MainController {
         }
 
         dateIntervalValue.setText(schedule.getStartDate() + " / " + schedule.getEndDate());
-        slotNumberValue.setText(String.valueOf(schedule.getSlotsPerDay()));
+        slotNumberValue.setText(schedule.getMinSlot() + " - " + schedule.getMaxSlot());
         long classroomCount = schedule.getExams().stream().map(Exam::getClassroomId).distinct().count();
         classroomListValue.setText(String.valueOf(classroomCount));
         
-        numCoursesValue.setText(String.valueOf(schedule.getExams().stream().map(Exam::getCourseCode).distinct().count()));
+        long courseCount = schedule.getExams().stream().map(Exam::getCourseCode).distinct().count();
+        numCoursesValue.setText(String.valueOf(courseCount));
+
+        Set<String> uniqueStudents = new HashSet<>();
+        if (schedule.getExams() != null && !schedule.getExams().isEmpty()) {
+            Set<String> courseCodes = schedule.getExams().stream()
+                                              .map(Exam::getCourseCode)
+                                              .collect(Collectors.toSet());
+
+            for (String courseCode : courseCodes) {
+                Course course = scheduleManager.getCourseWithStudents(courseCode);
+                if (course != null && course.getEnrolledStudents() != null) {
+                    uniqueStudents.addAll(course.getEnrolledStudents());
+                }
+            }
+        }
+        totalStudentsValue.setText(String.valueOf(uniqueStudents.size()));
         
-        totalStudentsValue.setText("N/A");
-        resolvedConflictsValue.setText("N/A");
+        resolvedConflictsValue.setText("Not available");
     }
 
     private void openStudentsPopup(Exam exam) {

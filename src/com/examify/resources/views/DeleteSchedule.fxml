@@ -50,17 +50,7 @@
             <Label style="-fx-font-weight: bold; -fx-font-size: 14px;" text="%label.endDate" />
             <DatePicker fx:id="endDatePicker" style="-fx-opacity: 1; -fx-background-color: white;" disable="true" editable="false" prefWidth="Infinity" promptText="%label.endDate" />
 
-            <Label style="-fx-padding: 5 0 0 0; -fx-font-weight: bold; -fx-font-size: 14px;" text="%label.scheduleData"/>
-            <HBox alignment="CENTER_LEFT" spacing="8">
-                <Label prefWidth="100" text="%label.courseList" />
-                <TextField fx:id="txtCourseList" editable="false" promptText="%label.courseList" />
-                <Button fx:id="btnImportCourses" disable="true" text="%button.import" />
-            </HBox>
-            <HBox alignment="CENTER_LEFT" spacing="8">
-                <Label prefWidth="100" text="%label.classroomList" />
-                <TextField fx:id="txtClassroomList" editable="false" promptText="%label.classroomList" />
-                <Button fx:id="btnImportClassrooms" disable="true" text="%button.import" />
-            </HBox>
+
         </VBox>
     </center>
 

@@ -131,6 +131,34 @@ public class ScheduleManager {
             throw new RuntimeException("Failed to delete schedule: " + e.getMessage(), e);
         }
     }
+
+    public Schedule recreateSchedule(int oldScheduleId, String name, LocalDate startDate, LocalDate endDate, int minSlot, int maxSlot, List<Course> courses, List<Classroom> classrooms) throws SchedulingException {
+        try {
+            deleteSchedule(oldScheduleId);
+            return createSchedule(name, startDate, endDate, minSlot, maxSlot, courses, classrooms);
+        } catch (Exception e) {
+            throw new SchedulingException("Failed to recreate schedule: " + e.getMessage(), e);
+        }
+    }
+
+    public List<Course> getCoursesWithDetails(List<String> courseCodes) {
+        try {
+            return dbConnection.loadCourses(courseCodes);
+        } catch (Exception e) {
+            logger.error("Failed to load courses with details", e);
+            return new ArrayList<>();
+        }
+    }
+
+    public List<Classroom> getClassroomsWithDetails(List<String> classroomIds) {
+        try {
+            return dbConnection.loadClassrooms(classroomIds);
+        } catch (Exception e) {
+            logger.error("Failed to load classrooms with details", e);
+            return new ArrayList<>();
+        }
+    }
+     
     
     public Schedule getCurrentSchedule() {
         return currentSchedule;

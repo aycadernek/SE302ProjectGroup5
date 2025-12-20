@@ -76,8 +76,8 @@ public class DeleteScheduleController {
 
     private void populateFields(Schedule schedule) {
         txtName.setText(schedule.getName());
-        txtMinSlotNumber.setText(String.valueOf(schedule.getSlotsPerDay())); 
-        txtMaxSlotNumber.setText(String.valueOf(schedule.getSlotsPerDay())); 
+        txtMinSlotNumber.setText(String.valueOf(schedule.getMinSlot())); 
+        txtMaxSlotNumber.setText(String.valueOf(schedule.getMaxSlot())); 
         startDatePicker.setValue(schedule.getStartDate());
         endDatePicker.setValue(schedule.getEndDate());
     }
