@@ -100,6 +100,9 @@ public class ExportScheduleController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
+        alert.setResizable(true);
+        alert.getDialogPane().setMinWidth(400);
+        alert.getDialogPane().setMinHeight(200);
         alert.showAndWait();
     }
 

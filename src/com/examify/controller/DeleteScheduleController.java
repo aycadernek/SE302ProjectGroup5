@@ -97,6 +97,9 @@ public class DeleteScheduleController {
             alert.setTitle("Delete Schedule");
             alert.setHeaderText("Are you sure you want to delete the schedule: " + selectedSchedule.getName() + "?");
             alert.setContentText("This action cannot be undone.");
+            alert.setResizable(true);
+            alert.getDialogPane().setMinWidth(400);
+            alert.getDialogPane().setMinHeight(200);
 
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -107,6 +110,9 @@ public class DeleteScheduleController {
                     closeWindow();
                 } catch (Exception ex) {
                     Alert errorAlert = new Alert(Alert.AlertType.ERROR);
+                    errorAlert.setResizable(true);
+                    errorAlert.getDialogPane().setMinWidth(400);
+                    errorAlert.getDialogPane().setMinHeight(200);
                     errorAlert.setTitle("Error Deleting Schedule");
                     errorAlert.setHeaderText(null);
                     errorAlert.setContentText("Could not delete the schedule. Error: " + ex.getMessage());
@@ -118,6 +124,9 @@ public class DeleteScheduleController {
             alert.setTitle("No Schedule Selected");
             alert.setHeaderText(null);
             alert.setContentText("Please select a schedule to delete.");
+            alert.setResizable(true);
+            alert.getDialogPane().setMinWidth(400);
+            alert.getDialogPane().setMinHeight(200);
             alert.showAndWait();
         }
     }

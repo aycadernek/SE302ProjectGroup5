@@ -145,7 +145,10 @@ public class EditScheduleController {
                 confirmation.setTitle("Confirm Update");
                 confirmation.setHeaderText("Significant changes detected.");
                 confirmation.setContentText("This will regenerate the schedule. If successful, old data will be replaced. Proceed?");
-
+                confirmation.setResizable(true);
+                confirmation.getDialogPane().setMinWidth(400);
+                confirmation.getDialogPane().setMinHeight(200);
+            
                 java.util.Optional<ButtonType> result = confirmation.showAndWait();
                 if (result.isPresent() && result.get() == ButtonType.OK) {
                     
@@ -238,6 +241,9 @@ public class EditScheduleController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
+        alert.setResizable(true);
+        alert.getDialogPane().setMinWidth(400);
+        alert.getDialogPane().setMinHeight(200);
         alert.showAndWait();
     }
 
