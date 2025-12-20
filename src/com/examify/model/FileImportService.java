@@ -355,16 +355,58 @@ public class FileImportService {
     private ValidationResult validateData(List<Map<String, String>> rawData, DataType dataType) {
         ValidationResult result = new ValidationResult();
         List<Map<String, String>> validData = new ArrayList<>();
-        for(Map<String, String> row : rawData){
-            if (dataType == DataType.CLASSROOMS) {
-                if(row.get("classroom_id") == null || row.get("classroom_id").isEmpty()){
-                     result.addError(0, "Classroom ID is required.");
-                }
-                if(row.get("capacity") == null || row.get("capacity").isEmpty()){
-                     result.addError(0, "Capacity is required.");
-                }
+        int lineNumber = 1; // Start line number for validation reporting
+
+        for (Map<String, String> row : rawData) {
+            lineNumber++; // Increment for each row, assuming header is line 1 or processing starts after header
+            boolean rowIsValid = true;
+
+            switch (dataType) {
+                case STUDENTS:
+                    if (!row.containsKey("student_id") || row.get("student_id") == null || row.get("student_id").trim().isEmpty()) {
+                        result.addError(lineNumber, "Student ID is required.");
+                        rowIsValid = false;
+                    }
+                    break;
+                case COURSES:
+                    if (!row.containsKey("course_code") || row.get("course_code") == null || row.get("course_code").trim().isEmpty()) {
+                        result.addError(lineNumber, "Course code is required.");
+                        rowIsValid = false;
+                    }
+                    break;
+                case CLASSROOMS:
+                    if (!row.containsKey("classroom_id") || row.get("classroom_id") == null || row.get("classroom_id").trim().isEmpty()) {
+                        result.addError(lineNumber, "Classroom ID is required.");
+                        rowIsValid = false;
+                    }
+                    if (!row.containsKey("capacity") || row.get("capacity") == null || row.get("capacity").trim().isEmpty()) {
+                        result.addError(lineNumber, "Capacity is required.");
+                        rowIsValid = false;
+                    } else {
+                        try {
+                            Integer.parseInt(row.get("capacity").trim());
+                        } catch (NumberFormatException e) {
+                            result.addError(lineNumber, "Capacity must be a valid number.");
+                            rowIsValid = false;
+                        }
+                    }
+                    break;
+                case ENROLLMENTS:
+                    if (!row.containsKey("student_id") || row.get("student_id") == null || row.get("student_id").trim().isEmpty()) {
+                        result.addError(lineNumber, "Student ID is required for enrollment.");
+                        rowIsValid = false;
+                    }
+                    if (!row.containsKey("course_code") || row.get("course_code") == null || row.get("course_code").trim().isEmpty()) {
+                        result.addError(lineNumber, "Course code is required for enrollment.");
+                        rowIsValid = false;
+                    }
+                    // Semester is optional and defaults to FALL2024, so no strict validation here unless specified otherwise
+                    break;
             }
-             validData.add(row);
+
+            if (rowIsValid) {
+                validData.add(row);
+            }
         }
         result.setValidData(validData);
         return result;

@@ -1,0 +1,42 @@
+[
+  {
+    "classroom_id": "Classroom_01",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_02",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_03",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_04",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_05",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_06",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_07",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_08",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_09",
+    "capacity": "40"
+  },
+  {
+    "classroom_id": "Classroom_10",
+    "capacity": "40"
+  }
+]
