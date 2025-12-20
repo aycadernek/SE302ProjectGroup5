@@ -102,6 +102,7 @@ public class DeleteScheduleController {
             if (result.isPresent() && result.get() == ButtonType.OK) {
                 try {
                     scheduleManager.deleteSchedule(selectedSchedule.getScheduleId());
+                    scheduleManager.setCurrentSchedule(null); 
                     mainController.refreshData(); 
                     closeWindow();
                 } catch (Exception ex) {

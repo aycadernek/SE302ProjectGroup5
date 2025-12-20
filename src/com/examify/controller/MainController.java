@@ -63,14 +63,12 @@ public class MainController {
     @FXML private Label classroomListLabel;
     @FXML private Label totalStudentsLabel;
     @FXML private Label numCoursesLabel;
-    @FXML private Label resolvedConflictsLabel;
 
     @FXML private Label dateIntervalValue;
     @FXML private Label slotNumberValue;
     @FXML private Label classroomListValue;
     @FXML private Label totalStudentsValue;
     @FXML private Label numCoursesValue;
-    @FXML private Label resolvedConflictsValue;
 
     private ScheduleManager scheduleManager;
     private Stage primaryStage;
@@ -182,30 +180,24 @@ public class MainController {
     }
 
     public void refreshData() {
-        Schedule selected = scheduleCombo.getValue();
         scheduleCombo.setItems(FXCollections.observableArrayList(scheduleManager.getAllSchedules()));
-
-        if (selected != null) {
-            Optional<Schedule> reselected = scheduleCombo.getItems().stream()
-                .filter(s -> s.getScheduleId() == selected.getScheduleId())
-                .findFirst();
-            if (reselected.isPresent()) {
-                scheduleCombo.getSelectionModel().select(reselected.get());
-            } else {
-                scheduleCombo.getSelectionModel().selectFirst();
-            }
-        } else {
-            scheduleCombo.getSelectionModel().selectFirst();
-        }
         
-        Schedule current = scheduleCombo.getValue();
-        scheduleManager.setCurrentSchedule(current);
-
+        Schedule current = scheduleManager.getCurrentSchedule();
         if(current != null){
+            Schedule toSelect = scheduleCombo.getItems().stream()
+                .filter(s -> s.getScheduleId() == current.getScheduleId())
+                .findFirst()
+                .orElse(null);
+            
+            if (toSelect != null) {
+                scheduleCombo.getSelectionModel().select(toSelect);
+            }
+            
             scheduleTable.setItems(FXCollections.observableArrayList(current.getExams()));
             populateInfoPanel(current);
         } else {
-            scheduleTable.getItems().clear();
+            scheduleCombo.getSelectionModel().clearSelection();
+            scheduleTable.setItems(FXCollections.observableArrayList());
             populateInfoPanel(null);
         }
     }
@@ -241,7 +233,6 @@ public class MainController {
         classroomListLabel.setText(resources.getString("label.totalClassroomCount"));
         totalStudentsLabel.setText(resources.getString("label.totalStudents"));
         numCoursesLabel.setText(resources.getString("label.numCourses"));
-        resolvedConflictsLabel.setText(resources.getString("label.resolvedConflicts"));
         
         searchField.setPromptText(resources.getString("search.prompt"));
         scheduleCombo.setPromptText(resources.getString("schedule.select"));
@@ -253,10 +244,10 @@ public class MainController {
         }
 
         setupPlaceholder();
+        
+        scheduleCombo.getSelectionModel().clearSelection();
+        scheduleManager.setCurrentSchedule(null);
         refreshData(); 
-        if(selectedSchedule != null) {
-             scheduleCombo.getSelectionModel().select(selectedSchedule);
-        }
 
         scheduleTable.getColumns().get(0).setVisible(false);
         scheduleTable.getColumns().get(0).setVisible(true);
@@ -327,7 +318,6 @@ public class MainController {
             classroomListValue.setText("");
             totalStudentsValue.setText("");
             numCoursesValue.setText("");
-            resolvedConflictsValue.setText("");
             return;
         }
 
@@ -343,7 +333,7 @@ public class MainController {
         if (schedule.getExams() != null && !schedule.getExams().isEmpty()) {
             Set<String> courseCodes = schedule.getExams().stream()
                                               .map(Exam::getCourseCode)
-                                              .collect(Collectors.toSet());
+                                              .collect(java.util.stream.Collectors.toSet());
 
             for (String courseCode : courseCodes) {
                 Course course = scheduleManager.getCourseWithStudents(courseCode, schedule.getScheduleId());
@@ -353,8 +343,6 @@ public class MainController {
             }
         }
         totalStudentsValue.setText(String.valueOf(uniqueStudents.size()));
-        
-        resolvedConflictsValue.setText("Not available");
     }
 
     private void openStudentsPopup(Exam exam) {
@@ -475,6 +463,7 @@ public class MainController {
         stage.setScene(scene);
         stage.initModality(Modality.APPLICATION_MODAL);
         stage.setTitle(title);
+        stage.sizeToScene(); 
         stage.show();
     }
     

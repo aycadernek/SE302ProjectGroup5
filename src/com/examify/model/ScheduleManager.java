@@ -29,6 +29,10 @@ public class ScheduleManager {
                 name, courses, classrooms, startDate, endDate, minSlot, maxSlot);
 
         schedule.setScheduleId(scheduleId);
+        for (Exam exam : schedule.getExams()) {
+            exam.setScheduleId(scheduleId);
+        }
+        
         schedule.setMinSlot(minSlot);
         schedule.setMaxSlot(maxSlot);
      
@@ -160,9 +164,12 @@ public class ScheduleManager {
         try {
             Schedule newSchedule = examScheduler.generateSchedule(name, courses, classrooms, startDate, endDate, minSlot, maxSlot);
             
-            dbConnection.updateExamsForSchedule(scheduleId, name, startDate, endDate, minSlot, maxSlot, newSchedule.getExams());
-            
             newSchedule.setScheduleId(scheduleId);
+            for (Exam exam : newSchedule.getExams()) {
+                exam.setScheduleId(scheduleId);
+            }
+
+            dbConnection.updateExamsForSchedule(scheduleId, name, startDate, endDate, minSlot, maxSlot, newSchedule.getExams());
             newSchedule.setMinSlot(minSlot);
             newSchedule.setMaxSlot(maxSlot);
             currentSchedule = newSchedule;
