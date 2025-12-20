@@ -211,18 +211,15 @@ public class ExamScheduler {
             Course course = pendingCourses.get(i);
             boolean placed = false;
 
-            for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-                if (placed) break;
+            for (LocalDate date = startDate; !date.isAfter(endDate) && !placed; date = date.plusDays(1)) {
 
-                for (Classroom classroom : classrooms) {
-                    if (placed) break;
+                for (int slot = minSlot; slot <= maxSlot && !placed; slot++) {
 
-                    if (classroom.getCapacity() < course.getStudentCount()) {
-                        continue;
-                    }
+                    for (Classroom classroom : classrooms) {
 
-                    for (int slot = minSlot; slot <= maxSlot; slot++) {
-                        if (placed) break;
+                        if (classroom.getCapacity() < course.getStudentCount()) {
+                            continue;
+                        }
 
                         if (isClassroomOccupied(date, slot, classroom.getClassroomId(), classroomOccupancy)) {
                             continue;
@@ -243,6 +240,7 @@ public class ExamScheduler {
                                 new ExamSlotAssignment(date, slot, classroom.getClassroomId()));
 
                         placed = true;
+                        break;
                     }
                 }
             }
@@ -250,8 +248,7 @@ public class ExamScheduler {
             if (!placed) {
                 if (schedule.getExams().isEmpty() || backtracks >= backtrackLimit) {
                     throw new SchedulingException(
-                            String.format("Cannot place course %s (students: %d). "
-                                            + "Consider increasing exam period or slots per day.",
+                            String.format("Cannot place course %s (students: %d).",
                                     course.getCourseCode(), course.getStudentCount()));
                 }
 
