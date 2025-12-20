@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
@@ -47,7 +48,10 @@ public class FileImportService {
     );
 
     private static final Map<String, String> ENROLLMENT_HEADERS = Map.ofEntries(
-        Map.entry("student_id", "student_id"), Map.entry("course_code", "course_code")
+        Map.entry("student_id", "student_id"), Map.entry("student id", "student_id"),
+        Map.entry("course_code", "course_code"), Map.entry("course code", "course_code"),
+        Map.entry("course", "course_code"), Map.entry("code", "course_code"),
+        Map.entry("studentid", "student_id")
     );
 
     static {
@@ -62,7 +66,7 @@ public class FileImportService {
         STUDENTS, COURSES, CLASSROOMS, ENROLLMENTS
     }
     
-    public ImportResult importData(Path filePath, DataType dataType) {
+    public ImportResult importData(Path filePath, DataType dataType , int scheduleId) {
         ImportResult result = new ImportResult();
         try {
             if (!Files.exists(filePath)) {
@@ -75,12 +79,12 @@ public class FileImportService {
             if (fileName.endsWith(".csv")) {
                 if (isSpecialMultiCourseFormat(filePath)) {
                     logger.info("Detected special multi-course enrollment file format.");
-                    return processSpecialMultiCourseEnrollmentFile(filePath);
+                    return processSpecialMultiCourseEnrollmentFile(filePath , scheduleId);
                 }
                 if (dataType == DataType.CLASSROOMS) {
                     logger.info("Classroom data type detected. Using dedicated classroom reader.");
                     List<Map<String, String>> rawData = readClassroomCSV(filePath);
-                    return processStandardImport(rawData, dataType);
+                    return processStandardImport(rawData, dataType , scheduleId);
                 }
             }
             
@@ -96,7 +100,7 @@ public class FileImportService {
                 return result;
             }
 
-            return processStandardImport(rawData, dataType);
+            return processStandardImport(rawData, dataType, scheduleId);
 
         } catch (Exception e) {
             logger.error("Import failed", e);
@@ -105,7 +109,7 @@ public class FileImportService {
         return result;
     }
 
-    private ImportResult processStandardImport(List<Map<String, String>> rawData, DataType dataType) throws SQLException {
+    private ImportResult processStandardImport(List<Map<String, String>> rawData, DataType dataType, int scheduleId) throws SQLException {
         ImportResult result = new ImportResult();
         if (rawData == null) {
             result.addError("Could not read or process file.");
@@ -117,10 +121,16 @@ public class FileImportService {
         result.addWarnings(validation.getWarnings());
 
         if (validation.isValid()) {
-            int importedCount = saveToDatabase(validation.getValidData(), dataType);
-            result.setImportedCount(importedCount);
-            result.setSuccess(true);
-            result.setMessage(String.format("Successfully imported %d %s", importedCount, dataType.toString().toLowerCase()));
+            try {
+                int importedCount = saveToDatabase(validation.getValidData(), dataType, scheduleId);
+                result.setImportedCount(importedCount);
+                result.setSuccess(true);
+                result.setMessage(String.format("Successfully imported %d %s", importedCount, dataType.toString().toLowerCase()));
+            } catch (SQLException e) {
+                logger.error("Database error during import of {}", dataType, e);
+                result.addError("Database error: " + e.getMessage());
+                result.setSuccess(false);
+            }
         }
         return result;
     }
@@ -137,7 +147,7 @@ public class FileImportService {
         }
     }
 
-    private ImportResult processSpecialMultiCourseEnrollmentFile(Path filePath) {
+    private ImportResult processSpecialMultiCourseEnrollmentFile(Path filePath, int scheduleId) {
         ImportResult result = new ImportResult();
         int totalImported = 0;
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath.toFile()))) {
@@ -152,12 +162,12 @@ public class FileImportService {
                 List<String> studentIds = parseStudentList(studentListLine);
                 if (studentIds.isEmpty()) continue;
 
-                saveToDatabase(List.of(Map.of("course_code", courseCode)), DataType.COURSES);
+                saveToDatabase(List.of(Map.of("course_code", courseCode)), DataType.COURSES, scheduleId);
                 List<Map<String, String>> studentsToSave = studentIds.stream().map(id -> Map.of("student_id", id)).collect(Collectors.toList());
-                saveToDatabase(studentsToSave, DataType.STUDENTS);
+                saveToDatabase(studentsToSave, DataType.STUDENTS, scheduleId);
 
                 List<Map<String, String>> enrollmentsToSave = studentIds.stream().map(id -> Map.of("student_id", id, "course_code", courseCode, "semester", "FALL2024")).collect(Collectors.toList());
-                totalImported += saveToDatabase(enrollmentsToSave, DataType.ENROLLMENTS);
+                totalImported += saveToDatabase(enrollmentsToSave, DataType.ENROLLMENTS, scheduleId);
             }
             result.setSuccess(true);
             result.setImportedCount(totalImported);
@@ -360,12 +370,12 @@ public class FileImportService {
         return result;
     }
     
-    private int saveToDatabase(List<Map<String, String>> validData, DataType dataType) throws SQLException {
+    private int saveToDatabase(List<Map<String, String>> validData, DataType dataType,int scheduleId) throws SQLException {
         return switch (dataType) {
             case STUDENTS -> saveStudents(validData);
-            case COURSES -> saveCourses(validData);
-            case CLASSROOMS -> saveClassrooms(validData);
-            case ENROLLMENTS -> saveEnrollments(validData);
+            case COURSES -> saveCourses(validData, scheduleId);
+            case CLASSROOMS -> saveClassrooms(validData, scheduleId);
+            case ENROLLMENTS -> saveEnrollments(validData, scheduleId);
         };
     }
     
@@ -383,13 +393,14 @@ public class FileImportService {
         }
     }
     
-    private int saveCourses(List<Map<String, String>> data) throws SQLException {
-        String sql = "INSERT OR IGNORE INTO courses (course_code) VALUES (?)";
+    private int saveCourses(List<Map<String, String>> data, int scheduleId) throws SQLException {
+        String sql = "INSERT OR IGNORE INTO courses (schedule_id, course_code) VALUES (?, ?)";
         try (var pstmt = dbConnection.getConnection().prepareStatement(sql)) {
             for (Map<String, String> record : data) {
                 String courseCode = record.get("course_code");
                 if (courseCode != null && !courseCode.isEmpty()) {
-                    pstmt.setString(1, courseCode);
+                    pstmt.setInt(1, scheduleId);
+                    pstmt.setString(2, courseCode);
                     pstmt.addBatch();
                 }
             }
@@ -397,15 +408,16 @@ public class FileImportService {
         }
     }
     
-    private int saveClassrooms(List<Map<String, String>> data) throws SQLException {
-        String sql = "INSERT OR REPLACE INTO classrooms (classroom_id, capacity) VALUES (?, ?)";
+    private int saveClassrooms(List<Map<String, String>> data , int scheduleId) throws SQLException {
+        String sql = "INSERT OR REPLACE INTO classrooms (schedule_id, classroom_id, capacity) VALUES (?, ?, ?)";
         try (var pstmt = dbConnection.getConnection().prepareStatement(sql)) {
             for (Map<String, String> record : data) {
                 String classroomId = record.get("classroom_id");
                 String capacityStr = record.get("capacity");
                 if (classroomId != null && !classroomId.isEmpty() && capacityStr != null && !capacityStr.isEmpty()) {
-                    pstmt.setString(1, classroomId);
-                    pstmt.setInt(2, Integer.parseInt(capacityStr));
+                    pstmt.setInt(1, scheduleId);
+                    pstmt.setString(2, classroomId);
+                    pstmt.setInt(3, Integer.parseInt(capacityStr));
                     pstmt.addBatch();
                 }
             }
@@ -413,21 +425,53 @@ public class FileImportService {
         }
     }
     
-    private int saveEnrollments(List<Map<String, String>> data) throws SQLException {
-        String sql = "INSERT OR IGNORE INTO enrollments (student_id, course_code, semester) VALUES (?, ?, ?)";
-        try (var pstmt = dbConnection.getConnection().prepareStatement(sql)) {
-            for (Map<String, String> record : data) {
-                String studentId = record.get("student_id");
-                String courseCode = record.get("course_code");
-                String semester = record.get("semester");
-                if (studentId != null && !studentId.isEmpty() && courseCode != null && !courseCode.isEmpty()) {
-                    pstmt.setString(1, studentId);
-                    pstmt.setString(2, courseCode);
-                    pstmt.setString(3, semester != null ? semester.trim() : "FALL2024");
-                    pstmt.addBatch();
+    private int saveEnrollments(List<Map<String, String>> data, int scheduleId) throws SQLException {
+        String insertStudentSql = "INSERT OR IGNORE INTO students (student_id) VALUES (?)";
+        String insertCourseSql = "INSERT OR IGNORE INTO courses (schedule_id, course_code) VALUES (?, ?)";
+        String insertEnrollmentSql = "INSERT OR IGNORE INTO enrollments (schedule_id, student_id, course_code, semester) VALUES (?, ?, ?, ?)";
+        
+        Connection conn = dbConnection.getConnection();
+        boolean originalAutoCommit = conn.getAutoCommit();
+        try {
+            conn.setAutoCommit(false);
+            
+            try (var pstmtStudent = conn.prepareStatement(insertStudentSql);
+                 var pstmtCourse = conn.prepareStatement(insertCourseSql);
+                 var pstmtEnrollment = conn.prepareStatement(insertEnrollmentSql)) {
+                
+                for (Map<String, String> record : data) {
+                    String studentId = record.get("student_id");
+                    String courseCode = record.get("course_code");
+                    String semester = record.get("semester");
+                    
+                    if (studentId != null && !studentId.isEmpty() && courseCode != null && !courseCode.isEmpty()) {
+                        pstmtStudent.setString(1, studentId);
+                        pstmtStudent.addBatch();
+                        
+                        pstmtCourse.setInt(1, scheduleId);
+                        pstmtCourse.setString(2, courseCode);
+                        pstmtCourse.addBatch();
+                        
+                        pstmtEnrollment.setInt(1, scheduleId);
+                        pstmtEnrollment.setString(2, studentId);
+                        pstmtEnrollment.setString(3, courseCode);
+                        pstmtEnrollment.setString(4, semester != null ? semester.trim() : "FALL2024");
+                        pstmtEnrollment.addBatch();
+                    }
                 }
+                
+                pstmtStudent.executeBatch();
+                pstmtCourse.executeBatch();
+                int[] results = pstmtEnrollment.executeBatch();
+                
+                conn.commit();
+                return Arrays.stream(results).filter(r -> r >= 0).sum();
             }
-            return Arrays.stream(pstmt.executeBatch()).filter(r -> r >= 0).sum();
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(originalAutoCommit);
         }
     }
     

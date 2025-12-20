@@ -26,12 +26,21 @@ public class EditScheduleController {
     @FXML private DatePicker endDatePicker;
     @FXML private Button updateButton;
 
+    @FXML private TextField txtCourseList;
+    @FXML private TextField txtClassroomList;
+    @FXML private Button btnImportCourses;
+    @FXML private Button btnImportClassrooms;
+
     private ScheduleManager scheduleManager;
+    private com.examify.model.FileImportService fileImportService;
     private MainController mainController;
     private Schedule selectedSchedule;
+    private java.io.File coursesFile;
+    private java.io.File classroomsFile;
 
     public void setScheduleManager(ScheduleManager scheduleManager) {
         this.scheduleManager = scheduleManager;
+        this.fileImportService = new com.examify.model.FileImportService(scheduleManager.getDbConnection());
     }
 
     public void setMainController(MainController mainController) {
@@ -63,6 +72,24 @@ public class EditScheduleController {
         });
 
         updateButton.setOnAction(e -> handleUpdate());
+        btnImportCourses.setOnAction(e -> handleSelectFile(com.examify.model.FileImportService.DataType.COURSES));
+        btnImportClassrooms.setOnAction(e -> handleSelectFile(com.examify.model.FileImportService.DataType.CLASSROOMS));
+    }
+
+    private void handleSelectFile(com.examify.model.FileImportService.DataType dataType) {
+        javafx.stage.FileChooser fileChooser = new javafx.stage.FileChooser();
+        fileChooser.setTitle("Select " + dataType.toString() + " File");
+        java.io.File file = fileChooser.showOpenDialog(updateButton.getScene().getWindow());
+
+        if (file != null) {
+            if (dataType == com.examify.model.FileImportService.DataType.COURSES) {
+                coursesFile = file;
+                txtCourseList.setText(file.getName());
+            } else if (dataType == com.examify.model.FileImportService.DataType.CLASSROOMS) {
+                classroomsFile = file;
+                txtClassroomList.setText(file.getName());
+            }
+        }
     }
 
     public void loadSchedules() {
@@ -77,6 +104,10 @@ public class EditScheduleController {
         txtMaxSlotNumber.setText(String.valueOf(schedule.getMaxSlot()));
         startDatePicker.setValue(schedule.getStartDate());
         endDatePicker.setValue(schedule.getEndDate());
+        txtCourseList.clear();
+        txtClassroomList.clear();
+        coursesFile = null;
+        classroomsFile = null;
     }
 
     private void clearFields() {
@@ -85,6 +116,8 @@ public class EditScheduleController {
         txtMaxSlotNumber.clear();
         startDatePicker.setValue(null);
         endDatePicker.setValue(null);
+        txtCourseList.clear();
+        txtClassroomList.clear();
     }
 
     private void handleUpdate() {
@@ -93,6 +126,9 @@ public class EditScheduleController {
             return;
         }
 
+        int tempScheduleId = -1;
+        com.examify.model.DatabaseConnection db = scheduleManager.getDbConnection();
+        
         try {
             int newMinSlot = Integer.parseInt(txtMinSlotNumber.getText());
             int newMaxSlot = Integer.parseInt(txtMaxSlotNumber.getText());
@@ -101,57 +137,73 @@ public class EditScheduleController {
             LocalDate newEndDate = endDatePicker.getValue();
 
             boolean slotsChanged = newMinSlot != selectedSchedule.getMinSlot() || newMaxSlot != selectedSchedule.getMaxSlot();
+            boolean datesChanged = !newStartDate.equals(selectedSchedule.getStartDate()) || !newEndDate.equals(selectedSchedule.getEndDate());
+            boolean filesChanged = coursesFile != null || classroomsFile != null;
 
-            if (slotsChanged) {
+            if (slotsChanged || datesChanged || filesChanged) {
                 Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-                confirmation.setTitle("Confirm Schedule Regeneration");
-                confirmation.setHeaderText("Changing slot numbers requires regenerating the schedule.");
-                confirmation.setContentText("This will delete the current exam placements and create a new schedule with the new settings. Are you sure you want to proceed?");
+                confirmation.setTitle("Confirm Update");
+                confirmation.setHeaderText("Significant changes detected.");
+                confirmation.setContentText("This will regenerate the schedule. If successful, old data will be replaced. Proceed?");
 
-                Optional<ButtonType> result = confirmation.showAndWait();
+                java.util.Optional<ButtonType> result = confirmation.showAndWait();
                 if (result.isPresent() && result.get() == ButtonType.OK) {
-                    recreateSchedule(newName, newStartDate, newEndDate, newMinSlot, newMaxSlot);
+                    
+                    tempScheduleId = db.insertInitialSchedule("TEMP_EDIT_" + System.currentTimeMillis(), newStartDate, newEndDate, (newMaxSlot - newMinSlot + 1), newMinSlot, newMaxSlot);
+
+                    if (coursesFile != null) {
+                        com.examify.model.FileImportService.ImportResult res = fileImportService.importData(coursesFile.toPath(), com.examify.model.FileImportService.DataType.ENROLLMENTS, tempScheduleId);
+                        if (!res.isSuccess()) {
+                            db.deleteSchedule(tempScheduleId);
+                            tempScheduleId = -1;
+                            throw new Exception("Course import failed: " + String.join("\n", res.getErrors()));
+                        }
+                    }
+                    if (classroomsFile != null) {
+                        com.examify.model.FileImportService.ImportResult res = fileImportService.importData(classroomsFile.toPath(), com.examify.model.FileImportService.DataType.CLASSROOMS, tempScheduleId);
+                        if (!res.isSuccess()) {
+                            db.deleteSchedule(tempScheduleId);
+                            tempScheduleId = -1;
+                            throw new Exception("Classroom import failed: " + String.join("\n", res.getErrors()));
+                        }
+                    }
+
+                    List<Course> courses = (coursesFile != null) ? 
+                        db.loadAllCourses(tempScheduleId) : db.loadAllCourses(selectedSchedule.getScheduleId());
+                    List<Classroom> classrooms = (classroomsFile != null) ? 
+                        db.loadAllClassrooms(tempScheduleId) : db.loadAllClassrooms(selectedSchedule.getScheduleId());
+
+                    if (courses.isEmpty() || classrooms.isEmpty()) {
+                        throw new Exception("No data available for regeneration. Check your files.");
+                    }
+
+                    com.examify.model.ExamScheduler scheduler = new com.examify.model.ExamScheduler();
+                    Schedule newGen = scheduler.generateSchedule(newName, courses, classrooms, newStartDate, newEndDate, newMinSlot, newMaxSlot);
+
+                    db.finalizeScheduleUpdate(selectedSchedule.getScheduleId(), tempScheduleId, newName, newStartDate, newEndDate, newMinSlot, newMaxSlot, newGen.getExams());
+                    
+                    db.deleteSchedule(tempScheduleId);
+                    tempScheduleId = -1;
+                    
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule updated and regenerated successfully.");
+                    mainController.refreshData();
+                    closeWindow();
                 }
             } else {
                 selectedSchedule.setName(newName);
-                selectedSchedule.setStartDate(newStartDate);
-                selectedSchedule.setEndDate(newEndDate);
-                // The min/max slots are not changed, but we still need to update them in the db
-                selectedSchedule.setMinSlot(newMinSlot);
-                selectedSchedule.setMaxSlot(newMaxSlot);
-
-                scheduleManager.updateSchedule(selectedSchedule);
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule updated successfully.");
+                db.updateSchedule(selectedSchedule);
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule updated.");
                 mainController.refreshData();
                 closeWindow();
             }
 
-        } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.ERROR, "Invalid Input", "Slot numbers must be valid integers.");
         } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not update the schedule: " + e.getMessage());
+            if (tempScheduleId != -1) {
+                try { db.deleteSchedule(tempScheduleId); } catch (Exception ex) {}
+            }
+            showAlert(Alert.AlertType.ERROR, "Update Failed", e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private void recreateSchedule(String newName, LocalDate newStartDate, LocalDate newEndDate, int newMinSlot, int newMaxSlot) throws Exception {
-        List<String> courseCodes = selectedSchedule.getExams().stream()
-                .map(Exam::getCourseCode)
-                .distinct()
-                .collect(Collectors.toList());
-        List<Course> courses = scheduleManager.getCoursesWithDetails(courseCodes);
-
-        List<String> classroomIds = selectedSchedule.getExams().stream()
-                .map(Exam::getClassroomId)
-                .distinct()
-                .collect(Collectors.toList());
-        List<Classroom> classrooms = scheduleManager.getClassroomsWithDetails(classroomIds);
-
-        scheduleManager.recreateSchedule(selectedSchedule.getScheduleId(), newName, newStartDate, newEndDate, newMinSlot, newMaxSlot, courses, classrooms);
-
-        showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule regenerated and updated successfully.");
-        mainController.refreshData();
-        closeWindow();
     }
 
 

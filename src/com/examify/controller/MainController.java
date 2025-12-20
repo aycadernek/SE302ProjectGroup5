@@ -87,12 +87,17 @@ public class MainController {
     public void initialize() {
         setupLanguageMenu();
         setupTable();
+        setupPlaceholder(); 
         setupEventHandlers();
         populateSearchTypes();
     }
     
     public void postInitialize() {
         refreshData();
+    }
+
+    private void setupPlaceholder() {
+        scheduleTable.setPlaceholder(new Label(resources.getString("table.noContent")));
     }
 
     private void setupLanguageMenu() {
@@ -247,6 +252,7 @@ public class MainController {
             searchTypeCombo.getSelectionModel().select(selectedSearchIndex);
         }
 
+        setupPlaceholder();
         refreshData(); 
         if(selectedSchedule != null) {
              scheduleCombo.getSelectionModel().select(selectedSchedule);
@@ -263,6 +269,13 @@ public class MainController {
                 resources.getString("search.classroom"),
                 resources.getString("search.date")
         ));
+    }
+
+    @FXML
+    private void handleSearchFieldKeyPress(javafx.scene.input.KeyEvent event) {
+        if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+            handleSearch();
+        }
     }
     
     private void handleSearch() {
@@ -333,7 +346,7 @@ public class MainController {
                                               .collect(Collectors.toSet());
 
             for (String courseCode : courseCodes) {
-                Course course = scheduleManager.getCourseWithStudents(courseCode);
+                Course course = scheduleManager.getCourseWithStudents(courseCode, schedule.getScheduleId());
                 if (course != null && course.getEnrolledStudents() != null) {
                     uniqueStudents.addAll(course.getEnrolledStudents());
                 }
@@ -347,7 +360,7 @@ public class MainController {
     private void openStudentsPopup(Exam exam) {
         if (exam == null) return;
 
-        Course course = scheduleManager.getCourseWithStudents(exam.getCourseCode());
+         Course course = scheduleManager.getCourseWithStudents(exam.getCourseCode(), exam.getScheduleId());
 
         if (course == null || course.getEnrolledStudents().isEmpty()) {
             showAlert(Alert.AlertType.INFORMATION,

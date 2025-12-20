@@ -3,6 +3,7 @@ package com.examify.model;
 import com.examify.model.entities.*;
 import java.sql.*;
 import java.util.*;
+import java.time.LocalDate;
 import java.util.logging.Logger;
 
 public class DatabaseConnection {
@@ -43,6 +44,11 @@ public class DatabaseConnection {
     }
     
     private void createTables() throws SQLException {
+     
+        try (Statement stmt = connection.createStatement()) {
+          
+        }
+
         String[] createTableStatements = {
             
             """
@@ -55,17 +61,23 @@ public class DatabaseConnection {
             
             """
             CREATE TABLE IF NOT EXISTS courses (
-                course_code TEXT PRIMARY KEY,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                schedule_id INTEGER NOT NULL,
+                course_code TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (schedule_id, course_code),
+                FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE
             )
             """,
             
             
             """
             CREATE TABLE IF NOT EXISTS classrooms (
-                classroom_id TEXT PRIMARY KEY,
+                schedule_id INTEGER NOT NULL,
+                classroom_id TEXT NOT NULL,
                 capacity INTEGER NOT NULL CHECK(capacity > 0),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (schedule_id, classroom_id),
+                FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE
             )
             """,
             
@@ -89,12 +101,14 @@ public class DatabaseConnection {
             """
             CREATE TABLE IF NOT EXISTS enrollments (
                 enrollment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                schedule_id INTEGER NOT NULL,
                 student_id TEXT NOT NULL,
                 course_code TEXT NOT NULL,
                 semester TEXT,
+                FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
                 FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
-                FOREIGN KEY (course_code) REFERENCES courses(course_code) ON DELETE CASCADE,
-                UNIQUE(student_id, course_code, semester)
+                FOREIGN KEY (schedule_id, course_code) REFERENCES courses(schedule_id, course_code) ON DELETE CASCADE,
+                UNIQUE(schedule_id, student_id, course_code, semester)
             )
             """,
             
@@ -108,8 +122,8 @@ public class DatabaseConnection {
                 slot INTEGER NOT NULL CHECK(slot >= 0),
                 duration INTEGER DEFAULT 2,
                 FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
-                FOREIGN KEY (course_code) REFERENCES courses(course_code),
-                FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id),
+                FOREIGN KEY (schedule_id, course_code) REFERENCES courses(schedule_id, course_code),
+                FOREIGN KEY (schedule_id, classroom_id) REFERENCES classrooms(schedule_id, classroom_id),
                 UNIQUE(schedule_id, classroom_id, exam_date, slot),
                 UNIQUE(schedule_id, course_code)
             )
@@ -139,6 +153,72 @@ public class DatabaseConnection {
             } catch (SQLException e) {
                 logger.warning("Failed to create index: " + sql + " - " + e.getMessage());
             }
+        }
+    }
+     public int insertInitialSchedule(String name, LocalDate startDate, LocalDate endDate, int slotsPerDay, int minSlot, int maxSlot) throws SQLException {
+        String insertScheduleSQL = """
+            INSERT INTO schedules (name, start_date, end_date, slots_per_day, min_slot_number, max_slot_number, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'draft')
+        """;
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(insertScheduleSQL, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setString(1, name);
+            pstmt.setDate(2, java.sql.Date.valueOf(startDate));
+            pstmt.setDate(3, java.sql.Date.valueOf(endDate));
+            pstmt.setInt(4, slotsPerDay);
+            pstmt.setInt(5, minSlot);
+            pstmt.setInt(6, maxSlot);
+            pstmt.executeUpdate();
+            
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                return rs.getInt(1);
+            } else {
+                throw new SQLException("Failed to get schedule ID");
+            }
+        }
+    }
+
+    public void saveExams(int scheduleId, List<Exam> exams) throws SQLException {
+        String deleteOldExamsSQL = "DELETE FROM exams WHERE schedule_id = ?";
+        String insertExamSQL = """
+            INSERT INTO exams (schedule_id, course_code, classroom_id, exam_date, slot, duration)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """;
+        
+        try {
+            connection.setAutoCommit(false);
+            
+            try (PreparedStatement pstmt = connection.prepareStatement(deleteOldExamsSQL)) {
+                pstmt.setInt(1, scheduleId);
+                pstmt.executeUpdate();
+            }
+            
+            try (PreparedStatement pstmt = connection.prepareStatement(insertExamSQL)) {
+                for (Exam exam : exams) {
+                    pstmt.setInt(1, scheduleId);
+                    pstmt.setString(2, exam.getCourseCode());
+                    pstmt.setString(3, exam.getClassroomId());
+                    pstmt.setDate(4, java.sql.Date.valueOf(exam.getExamDate()));
+                    pstmt.setInt(5, exam.getSlot());
+                    pstmt.setInt(6, exam.getDuration());
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+            }
+            
+            String updateStatusSQL = "UPDATE schedules SET status = 'finalized', updated_at = CURRENT_TIMESTAMP WHERE schedule_id = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(updateStatusSQL)) {
+                pstmt.setInt(1, scheduleId);
+                pstmt.executeUpdate();
+            }
+
+            connection.commit();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(true);
         }
     }
     
@@ -178,6 +258,11 @@ public class DatabaseConnection {
             }
             
             try (PreparedStatement pstmt = connection.prepareStatement(insertExamSQL)) {
+                try (PreparedStatement deletePstmt = connection.prepareStatement("DELETE FROM exams WHERE schedule_id = ?")) {
+                    deletePstmt.setInt(1, scheduleId);
+                    deletePstmt.executeUpdate();
+                }
+
                 for (Exam exam : schedule.getExams()) {
                     pstmt.setInt(1, scheduleId);
                     pstmt.setString(2, exam.getCourseCode());
@@ -201,10 +286,152 @@ public class DatabaseConnection {
         }
     }
     
+    public void updateExamsForSchedule(int scheduleId, String name, LocalDate startDate, LocalDate endDate, int minSlot, int maxSlot, List<Exam> exams) throws SQLException {
+        String updateScheduleSQL = """
+            UPDATE schedules SET name = ?, start_date = ?, end_date = ?, 
+            slots_per_day = ?, min_slot_number = ?, max_slot_number = ?, 
+            updated_at = CURRENT_TIMESTAMP
+            WHERE schedule_id = ?
+        """;
+        
+        String deleteExamsSQL = "DELETE FROM exams WHERE schedule_id = ?";
+        
+        String insertExamSQL = """
+            INSERT INTO exams (schedule_id, course_code, classroom_id, exam_date, slot, duration)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """;
+        
+        try {
+            connection.setAutoCommit(false);
+            
+            try (PreparedStatement pstmt = connection.prepareStatement(updateScheduleSQL)) {
+                pstmt.setString(1, name);
+                pstmt.setDate(2, java.sql.Date.valueOf(startDate));
+                pstmt.setDate(3, java.sql.Date.valueOf(endDate));
+                pstmt.setInt(4, (maxSlot - minSlot + 1));
+                pstmt.setInt(5, minSlot);
+                pstmt.setInt(6, maxSlot);
+                pstmt.setInt(7, scheduleId);
+                pstmt.executeUpdate();
+            }
+            
+            try (PreparedStatement pstmt = connection.prepareStatement(deleteExamsSQL)) {
+                pstmt.setInt(1, scheduleId);
+                pstmt.executeUpdate();
+            }
+            
+            try (PreparedStatement pstmt = connection.prepareStatement(insertExamSQL)) {
+                for (Exam exam : exams) {
+                    pstmt.setInt(1, scheduleId);
+                    pstmt.setString(2, exam.getCourseCode());
+                    pstmt.setString(3, exam.getClassroomId());
+                    pstmt.setDate(4, java.sql.Date.valueOf(exam.getExamDate()));
+                    pstmt.setInt(5, exam.getSlot());
+                    pstmt.setInt(6, exam.getDuration());
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+            }
+            
+            connection.commit();
+        } catch (SQLException e) {
+            connection.rollback();
+            throw e;
+        } finally {
+            connection.setAutoCommit(true);
+        }
+    }
+
+    public void finalizeScheduleUpdate(int actualId, int tempId, String name, LocalDate startDate, LocalDate endDate, int minSlot, int maxSlot, List<Exam> exams) throws SQLException {
+        try (Statement pragmaStmt = connection.createStatement()) {
+            pragmaStmt.execute("PRAGMA foreign_keys = OFF");
+            try {
+                connection.setAutoCommit(false);
+                
+                try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM exams WHERE schedule_id = ?")) {
+                    pstmt.setInt(1, actualId);
+                    pstmt.executeUpdate();
+                }
+
+                boolean hasNewCourses;
+                try (PreparedStatement pstmt = connection.prepareStatement("SELECT 1 FROM courses WHERE schedule_id = ? LIMIT 1")) {
+                    pstmt.setInt(1, tempId);
+                    hasNewCourses = pstmt.executeQuery().next();
+                }
+                if (hasNewCourses) {
+                    try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM enrollments WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.executeUpdate(); }
+                    try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM courses WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.executeUpdate(); }
+                    try (PreparedStatement pstmt = connection.prepareStatement("UPDATE courses SET schedule_id = ? WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.setInt(2, tempId); pstmt.executeUpdate(); }
+                    try (PreparedStatement pstmt = connection.prepareStatement("UPDATE enrollments SET schedule_id = ? WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.setInt(2, tempId); pstmt.executeUpdate(); }
+                }
+
+                boolean hasNewClassrooms;
+                try (PreparedStatement pstmt = connection.prepareStatement("SELECT 1 FROM classrooms WHERE schedule_id = ? LIMIT 1")) {
+                    pstmt.setInt(1, tempId);
+                    hasNewClassrooms = pstmt.executeQuery().next();
+                }
+                if (hasNewClassrooms) {
+                    try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM classrooms WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.executeUpdate(); }
+                    try (PreparedStatement pstmt = connection.prepareStatement("UPDATE classrooms SET schedule_id = ? WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.setInt(2, tempId); pstmt.executeUpdate(); }
+                }
+                
+                String updateSQL = "UPDATE schedules SET name=?, start_date=?, end_date=?, slots_per_day=?, min_slot_number=?, max_slot_number=?, updated_at=CURRENT_TIMESTAMP WHERE schedule_id=?";
+                try (PreparedStatement pstmt = connection.prepareStatement(updateSQL)) {
+                    pstmt.setString(1, name);
+                    pstmt.setDate(2, java.sql.Date.valueOf(startDate));
+                    pstmt.setDate(3, java.sql.Date.valueOf(endDate));
+                    pstmt.setInt(4, (maxSlot - minSlot + 1));
+                    pstmt.setInt(5, minSlot);
+                    pstmt.setInt(6, maxSlot);
+                    pstmt.setInt(7, actualId);
+                    pstmt.executeUpdate();
+                }
+                
+                String insertExamSQL = "INSERT INTO exams (schedule_id, course_code, classroom_id, exam_date, slot, duration) VALUES (?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement pstmt = connection.prepareStatement(insertExamSQL)) {
+                    for (Exam exam : exams) {
+                        pstmt.setInt(1, actualId);
+                        pstmt.setString(2, exam.getCourseCode());
+                        pstmt.setString(3, exam.getClassroomId());
+                        pstmt.setDate(4, java.sql.Date.valueOf(exam.getExamDate()));
+                        pstmt.setInt(5, exam.getSlot());
+                        pstmt.setInt(6, exam.getDuration());
+                        pstmt.addBatch();
+                    }
+                    pstmt.executeBatch();
+                }
+                
+                connection.commit();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(true);
+                pragmaStmt.execute("PRAGMA foreign_keys = ON");
+            }
+        }
+    }
+
+    public void cleanupTemporaryData(int tempId) throws SQLException {
+        String[] deleteSqls = {
+            "DELETE FROM exams WHERE schedule_id = ?",
+            "DELETE FROM enrollments WHERE schedule_id = ?",
+            "DELETE FROM classrooms WHERE schedule_id = ?",
+            "DELETE FROM courses WHERE schedule_id = ?"
+        };
+        for (String sql : deleteSqls) {
+            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                pstmt.setInt(1, tempId);
+                pstmt.executeUpdate();
+            }
+        }
+    }
+
     public void updateSchedule(Schedule schedule) throws SQLException {
         String updateScheduleSQL = """
             UPDATE schedules SET name = ?, start_date = ?, end_date = ?, 
-            slots_per_day = ?, max_exams_per_day = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            slots_per_day = ?, min_slot_number = ?, max_slot_number = ?, 
+            max_exams_per_day = ?, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE schedule_id = ?
         """;
         
@@ -212,23 +439,32 @@ public class DatabaseConnection {
             pstmt.setString(1, schedule.getName());
             pstmt.setDate(2, java.sql.Date.valueOf(schedule.getStartDate()));
             pstmt.setDate(3, java.sql.Date.valueOf(schedule.getEndDate()));
-            pstmt.setInt(4, schedule.getSlotsPerDay());
-            pstmt.setInt(5, schedule.getMaxExamsPerDay());
-            pstmt.setString(6, schedule.getStatus());
-            pstmt.setInt(7, schedule.getScheduleId());
+            pstmt.setInt(4, (schedule.getMaxSlot() - schedule.getMinSlot() + 1));
+            pstmt.setInt(5, schedule.getMinSlot());
+            pstmt.setInt(6, schedule.getMaxSlot());
+            pstmt.setInt(7, schedule.getMaxExamsPerDay());
+            pstmt.setString(8, schedule.getStatus());
+            pstmt.setInt(9, schedule.getScheduleId());
             pstmt.executeUpdate();
         }
     }
     
     public void deleteSchedule(int scheduleId) throws SQLException {
-        String deleteScheduleSQL = "DELETE FROM schedules WHERE schedule_id = ?";
-        
+         String[] deleteSqls = {
+            "DELETE FROM exams WHERE schedule_id = ?",
+            "DELETE FROM enrollments WHERE schedule_id = ?",
+            "DELETE FROM classrooms WHERE schedule_id = ?",
+            "DELETE FROM courses WHERE schedule_id = ?",
+            "DELETE FROM schedules WHERE schedule_id = ?"
+        };
         try {
             connection.setAutoCommit(false);
             
-            try (PreparedStatement pstmt = connection.prepareStatement(deleteScheduleSQL)) {
-                pstmt.setInt(1, scheduleId);
-                pstmt.executeUpdate();
+            for (String sql : deleteSqls) {
+                try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                    pstmt.setInt(1, scheduleId);
+                    pstmt.executeUpdate();
+                }
             }
             
             connection.commit();
@@ -246,7 +482,7 @@ public class DatabaseConnection {
         String examsSQL = """
             SELECT e.*, cr.capacity
             FROM exams e
-            JOIN classrooms cr ON e.classroom_id = cr.classroom_id
+            JOIN classrooms cr ON e.classroom_id = cr.classroom_id AND e.schedule_id = cr.schedule_id
             WHERE e.schedule_id = ?
             ORDER BY e.exam_date, e.slot
         """;
@@ -323,7 +559,7 @@ public class DatabaseConnection {
         String examsSQL = """
             SELECT e.*, cr.capacity
             FROM exams e
-            JOIN classrooms cr ON e.classroom_id = cr.classroom_id
+            JOIN classrooms cr ON e.classroom_id = cr.classroom_id AND e.schedule_id = cr.schedule_id
             WHERE e.schedule_id IN (
         """ +
         "?) ORDER BY e.schedule_id, e.exam_date, e.slot";
@@ -414,12 +650,13 @@ public class DatabaseConnection {
         return new ArrayList<>(scheduleMap.values());
     }
 
-    public Course loadCourse(String courseCode) throws SQLException {
-        String courseSql = "SELECT * FROM courses WHERE course_code = ?";
+    public Course loadCourse(String courseCode , int scheduleId) throws SQLException {
+        String courseSql = "SELECT * FROM courses WHERE course_code = ? AND schedule_id = ?" ;
         Course course = null;
 
         try (PreparedStatement stmt = connection.prepareStatement(courseSql)) {
             stmt.setString(1, courseCode);
+            stmt.setInt(2, scheduleId);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 course = new Course(rs.getString("course_code"));
@@ -427,10 +664,11 @@ public class DatabaseConnection {
         }
 
         if (course != null) {
-            String enrollmentSql = "SELECT student_id FROM enrollments WHERE course_code = ?";
+            String enrollmentSql = "SELECT student_id FROM enrollments WHERE course_code = ? AND schedule_id = ?";
             Set<String> enrolledStudents = new HashSet<>();
             try (PreparedStatement stmt = connection.prepareStatement(enrollmentSql)) {
                 stmt.setString(1, courseCode);
+                stmt.setInt(2, scheduleId);
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
                     enrolledStudents.add(rs.getString("student_id"));
@@ -442,11 +680,12 @@ public class DatabaseConnection {
         return course;
     }
     
-    public List<Course> loadAllCourses() throws SQLException {
-        String enrollmentSql = "SELECT course_code, student_id FROM enrollments";
+    public List<Course> loadAllCourses(int scheduleId) throws SQLException {
+        String enrollmentSql = "SELECT course_code, student_id FROM enrollments WHERE schedule_id = ?";
         Map<String, Set<String>> enrollmentsByCourse = new HashMap<>();
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(enrollmentSql)) {
+         try (PreparedStatement stmt = connection.prepareStatement(enrollmentSql)) {
+            stmt.setInt(1, scheduleId);
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 String courseCode = rs.getString("course_code");
                 String studentId = rs.getString("student_id");
@@ -454,10 +693,11 @@ public class DatabaseConnection {
             }
         }
 
-        String courseSql = "SELECT * FROM courses ORDER BY course_code";
+        String courseSql = "SELECT course_code FROM courses WHERE schedule_id = ? ORDER BY course_code";
         List<Course> courses = new ArrayList<>();
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(courseSql)) {
+        try (PreparedStatement stmt = connection.prepareStatement(courseSql)) {
+            stmt.setInt(1, scheduleId);
+            ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
                 String courseCode = rs.getString("course_code");
@@ -514,12 +754,13 @@ public class DatabaseConnection {
     }
     
     
-    public List<Classroom> loadAllClassrooms() throws SQLException {
-        String sql = "SELECT * FROM classrooms ORDER BY classroom_id";
+    public List<Classroom> loadAllClassrooms(int scheduleId) throws SQLException {
+        String sql = "SELECT * FROM classrooms WHERE schedule_id = ? ORDER BY classroom_id";
         List<Classroom> classrooms = new ArrayList<>();
         
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setInt(1, scheduleId);
+            ResultSet rs = stmt.executeQuery();
             
             while (rs.next()) {
                 Classroom classroom = new Classroom(
@@ -560,7 +801,7 @@ public class DatabaseConnection {
         StringBuilder sql = new StringBuilder("""
             SELECT e.*, cr.capacity
             FROM exams e
-            JOIN classrooms cr ON e.classroom_id = cr.classroom_id
+            JOIN classrooms cr ON e.classroom_id = cr.classroom_id AND e.schedule_id = cr.schedule_id
             WHERE 1=1
         """);
         
@@ -570,8 +811,8 @@ public class DatabaseConnection {
             sql = new StringBuilder("""
                 SELECT e.*, cr.capacity
                 FROM exams e
-                JOIN classrooms cr ON e.classroom_id = cr.classroom_id
-                JOIN enrollments en ON e.course_code = en.course_code
+                JOIN classrooms cr ON e.classroom_id = cr.classroom_id AND e.schedule_id = cr.schedule_id
+                JOIN enrollments en ON e.course_code = en.course_code AND e.schedule_id = en.schedule_id
                 WHERE en.student_id = ?
             """);
             params.add(criteria.getStudentId());

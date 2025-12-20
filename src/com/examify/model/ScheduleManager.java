@@ -20,6 +20,30 @@ public class ScheduleManager {
         this.examScheduler = new ExamScheduler();
     }
     
+    public Schedule createSchedule(int scheduleId, String name, LocalDate startDate,
+                                   LocalDate endDate, int minSlot, int maxSlot,
+                                   List<Course> courses, List<Classroom> classrooms)
+            throws SchedulingException {
+
+        Schedule schedule = examScheduler.generateSchedule(
+                name, courses, classrooms, startDate, endDate, minSlot, maxSlot);
+
+        schedule.setScheduleId(scheduleId);
+        schedule.setMinSlot(minSlot);
+        schedule.setMaxSlot(maxSlot);
+     
+
+        try {
+            dbConnection.saveExams(scheduleId, schedule.getExams());
+            currentSchedule = schedule;
+
+            return schedule;
+
+        } catch (Exception e) {
+            throw new SchedulingException("Failed to save schedule exams: " + e.getMessage(), e);
+        }
+    }
+
     public Schedule createSchedule(String name, LocalDate startDate,
                                    LocalDate endDate, int minSlot, int maxSlot,
                                    List<Course> courses, List<Classroom> classrooms)
@@ -65,11 +89,11 @@ public class ScheduleManager {
         return dbConnection;
     }
 
-    public Course getCourseWithStudents(String courseCode) {
+    public Course getCourseWithStudents(String courseCode, int scheduleId) {
         try {
-            return dbConnection.loadCourse(courseCode);
+            return dbConnection.loadCourse(courseCode, scheduleId);
         } catch (Exception e) {
-            logger.error("Failed to load course with students: {}", courseCode, e);
+            logger.error("Failed to load course with students: {}for schedule {}", courseCode, scheduleId, e);
             return null;
         }
     }
@@ -132,29 +156,37 @@ public class ScheduleManager {
         }
     }
 
-    public Schedule recreateSchedule(int oldScheduleId, String name, LocalDate startDate, LocalDate endDate, int minSlot, int maxSlot, List<Course> courses, List<Classroom> classrooms) throws SchedulingException {
+    public Schedule recreateSchedule(int scheduleId, String name, LocalDate startDate, LocalDate endDate, int minSlot, int maxSlot, List<Course> courses, List<Classroom> classrooms) throws SchedulingException {
         try {
-            deleteSchedule(oldScheduleId);
-            return createSchedule(name, startDate, endDate, minSlot, maxSlot, courses, classrooms);
+            Schedule newSchedule = examScheduler.generateSchedule(name, courses, classrooms, startDate, endDate, minSlot, maxSlot);
+            
+            dbConnection.updateExamsForSchedule(scheduleId, name, startDate, endDate, minSlot, maxSlot, newSchedule.getExams());
+            
+            newSchedule.setScheduleId(scheduleId);
+            newSchedule.setMinSlot(minSlot);
+            newSchedule.setMaxSlot(maxSlot);
+            currentSchedule = newSchedule;
+            
+            return newSchedule;
         } catch (Exception e) {
             throw new SchedulingException("Failed to recreate schedule: " + e.getMessage(), e);
         }
     }
 
-    public List<Course> getCoursesWithDetails(List<String> courseCodes) {
+    public List<Course> getCoursesWithDetails(int scheduleId) {
         try {
-            return dbConnection.loadCourses(courseCodes);
+            return dbConnection.loadAllCourses(scheduleId);
         } catch (Exception e) {
-            logger.error("Failed to load courses with details", e);
+            logger.error("Failed to load courses for schedule {}", scheduleId, e);
             return new ArrayList<>();
         }
     }
 
-    public List<Classroom> getClassroomsWithDetails(List<String> classroomIds) {
+    public List<Classroom> getClassroomsWithDetails(int scheduleId) {
         try {
-            return dbConnection.loadClassrooms(classroomIds);
+            return dbConnection.loadAllClassrooms(scheduleId);
         } catch (Exception e) {
-            logger.error("Failed to load classrooms with details", e);
+            logger.error("Failed to load classrooms for schedule {}", scheduleId, e);
             return new ArrayList<>();
         }
     }

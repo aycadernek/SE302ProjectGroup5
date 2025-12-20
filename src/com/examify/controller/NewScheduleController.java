@@ -27,10 +27,14 @@ public class NewScheduleController {
     @FXML private Button generateButton;
     @FXML private Button btnImportCourses;
     @FXML private Button btnImportClassrooms;
+    @FXML private TextField txtCourseList;
+    @FXML private TextField txtClassroomList;
 
     private ScheduleManager scheduleManager;
     private FileImportService fileImportService;
     private MainController mainController;
+    private File coursesFile;
+    private File classroomsFile;
 
     public void setScheduleManager(ScheduleManager scheduleManager) {
         this.scheduleManager = scheduleManager;
@@ -44,49 +48,76 @@ public class NewScheduleController {
     @FXML
     public void initialize() {
         generateButton.setOnAction(e -> handleGenerate());
-        btnImportCourses.setOnAction(e -> handleImport(FileImportService.DataType.COURSES));
-        btnImportClassrooms.setOnAction(e -> handleImport(FileImportService.DataType.CLASSROOMS));
+        btnImportCourses.setOnAction(e -> handleSelectFile(FileImportService.DataType.COURSES));
+        btnImportClassrooms.setOnAction(e -> handleSelectFile(FileImportService.DataType.CLASSROOMS));
     }
 
     private void handleGenerate() {
+        int scheduleId = -1;
+        DatabaseConnection db = scheduleManager.getDbConnection();
         try {
             String name = txtName.getText();
             LocalDate startDate = startDatePicker.getValue();
             LocalDate endDate = endDatePicker.getValue();
-            int minSlot = Integer.parseInt(txtMinSlotNumber.getText());
-            int maxSlot = Integer.parseInt(txtMaxSlotNumber.getText());
-
-            if (name.isEmpty() || startDate == null || endDate == null) {
+            if (name.isEmpty() || startDate == null || endDate == null || 
+                txtMinSlotNumber.getText().isEmpty() || txtMaxSlotNumber.getText().isEmpty()) {
                 showAlert(Alert.AlertType.WARNING, "Missing Information", "Please fill in all fields.");
                 return;
             }
 
-            DatabaseConnection db = scheduleManager.getDbConnection();
-            List<Course> courses = db.loadAllCourses();
-            List<Classroom> classrooms = db.loadAllClassrooms();
+            int minSlot = Integer.parseInt(txtMinSlotNumber.getText());
+            int maxSlot = Integer.parseInt(txtMaxSlotNumber.getText());
 
-            if (courses.isEmpty() || classrooms.isEmpty()) {
-                showAlert(Alert.AlertType.ERROR, "Data Missing", "No courses or classrooms found in the database. Please import them first.");
+            if (coursesFile == null || classroomsFile == null) {
+                showAlert(Alert.AlertType.WARNING, "Missing Files", "Please select both course and classroom files.");
                 return;
             }
 
-            scheduleManager.createSchedule(name, startDate, endDate, minSlot, maxSlot, courses, classrooms);
+            scheduleId = db.insertInitialSchedule(name, startDate, endDate, (maxSlot - minSlot + 1), minSlot, maxSlot);
+
+            FileImportService.ImportResult courseResult = fileImportService.importData(coursesFile.toPath(), FileImportService.DataType.ENROLLMENTS, scheduleId);
+            if (!courseResult.isSuccess()) {
+                throw new Exception("Failed to import courses: " + String.join("\n", courseResult.getErrors()));
+            }
+
+            FileImportService.ImportResult classroomResult = fileImportService.importData(classroomsFile.toPath(), FileImportService.DataType.CLASSROOMS, scheduleId);
+            if (!classroomResult.isSuccess()) {
+                throw new Exception("Failed to import classrooms: " + String.join("\n", classroomResult.getErrors()));
+            }
+
+            List<Course> courses = db.loadAllCourses(scheduleId);
+            courses = courses.stream()
+                            .collect(java.util.stream.Collectors.toMap(
+                                Course::getCourseCode, 
+                                c -> c, 
+                                (existing, replacement) -> existing))
+                            .values().stream().toList();
+
+            List<Classroom> classrooms = db.loadAllClassrooms(scheduleId);
+
+            if (courses.isEmpty() || classrooms.isEmpty()) {
+                 throw new Exception("Imported files resulted in no data. Please check your files.");
+            }
+
+            scheduleManager.createSchedule(scheduleId, name, startDate, endDate, minSlot, maxSlot, courses, classrooms);
 
             showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule '" + name + "' generated successfully.");
             mainController.refreshData();
             closeWindow();
 
         } catch (NumberFormatException e) {
+            if (scheduleId != -1) try { db.deleteSchedule(scheduleId); } catch (Exception ex) {}
             showAlert(Alert.AlertType.ERROR, "Invalid Input", "Min and Max slots must be valid numbers.");
         } catch (Exception e) {
+            if (scheduleId != -1) try { db.deleteSchedule(scheduleId); } catch (Exception ex) {}
             showAlert(Alert.AlertType.ERROR, "Error", "Could not generate schedule: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void handleImport(FileImportService.DataType dataType) {
+    private void handleSelectFile(FileImportService.DataType dataType) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Import " + dataType.toString());
+        fileChooser.setTitle("Select " + dataType.toString() + " File");
         fileChooser.getExtensionFilters().addAll(
                 new FileChooser.ExtensionFilter("All Supported Files", "*.csv", "*.json", "*.xlsx", "*.xls"),
                 new FileChooser.ExtensionFilter("CSV Files", "*.csv"),
@@ -97,11 +128,12 @@ public class NewScheduleController {
         File file = fileChooser.showOpenDialog(btnImportCourses.getScene().getWindow());
 
         if (file != null) {
-            FileImportService.ImportResult result = fileImportService.importData(file.toPath(), dataType);
-            if (result.isSuccess()) {
-                showAlert(Alert.AlertType.INFORMATION, "Import Successful", result.getMessage());
-            } else {
-                showAlert(Alert.AlertType.ERROR, "Import Failed", String.join("\n", result.getErrors()));
+            if (dataType == FileImportService.DataType.COURSES) {
+                coursesFile = file;
+                txtCourseList.setText(file.getName());
+            } else if (dataType == FileImportService.DataType.CLASSROOMS) {
+                classroomsFile = file;
+                txtClassroomList.setText(file.getName());
             }
         }
     }
