@@ -44,11 +44,6 @@ public class DatabaseConnection {
     }
     
     private void createTables() throws SQLException {
-     
-        try (Statement stmt = connection.createStatement()) {
-          
-        }
-
         String[] createTableStatements = {
             
             """
@@ -104,11 +99,10 @@ public class DatabaseConnection {
                 schedule_id INTEGER NOT NULL,
                 student_id TEXT NOT NULL,
                 course_code TEXT NOT NULL,
-                semester TEXT,
                 FOREIGN KEY (schedule_id) REFERENCES schedules(schedule_id) ON DELETE CASCADE,
                 FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
                 FOREIGN KEY (schedule_id, course_code) REFERENCES courses(schedule_id, course_code) ON DELETE CASCADE,
-                UNIQUE(schedule_id, student_id, course_code, semester)
+                UNIQUE(schedule_id, student_id, course_code)
             )
             """,
             
@@ -353,14 +347,26 @@ public class DatabaseConnection {
                     pstmt.executeUpdate();
                 }
 
-                boolean hasNewCourses;
+                // 2. Refresh Courses & Enrollments
+                // Check if we have ANY data in tempId (either courses or enrollments)
+                boolean hasTempEnrollments;
+                try (PreparedStatement pstmt = connection.prepareStatement("SELECT 1 FROM enrollments WHERE schedule_id = ? LIMIT 1")) {
+                    pstmt.setInt(1, tempId);
+                    hasTempEnrollments = pstmt.executeQuery().next();
+                }
+                
+                boolean hasTempCourses;
                 try (PreparedStatement pstmt = connection.prepareStatement("SELECT 1 FROM courses WHERE schedule_id = ? LIMIT 1")) {
                     pstmt.setInt(1, tempId);
-                    hasNewCourses = pstmt.executeQuery().next();
+                    hasTempCourses = pstmt.executeQuery().next();
                 }
-                if (hasNewCourses) {
+
+                if (hasTempCourses || hasTempEnrollments) {
+                    // Delete old ones
                     try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM enrollments WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.executeUpdate(); }
                     try (PreparedStatement pstmt = connection.prepareStatement("DELETE FROM courses WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.executeUpdate(); }
+                    
+                    // Move new ones
                     try (PreparedStatement pstmt = connection.prepareStatement("UPDATE courses SET schedule_id = ? WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.setInt(2, tempId); pstmt.executeUpdate(); }
                     try (PreparedStatement pstmt = connection.prepareStatement("UPDATE enrollments SET schedule_id = ? WHERE schedule_id = ?")) { pstmt.setInt(1, actualId); pstmt.setInt(2, tempId); pstmt.executeUpdate(); }
                 }

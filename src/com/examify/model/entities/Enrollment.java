@@ -6,15 +6,13 @@ public class Enrollment {
     private int enrollmentId;
     private String studentId;
     private String courseCode;
-    private String semester;
     private LocalDateTime createdAt;
     
     public Enrollment() {}
     
-    public Enrollment(String studentId, String courseCode, String semester) {
+    public Enrollment(String studentId, String courseCode) {
         this.studentId = studentId;
         this.courseCode = courseCode;
-        this.semester = semester;
         this.createdAt = LocalDateTime.now();
     }
     
@@ -27,15 +25,12 @@ public class Enrollment {
     public String getCourseCode() { return courseCode; }
     public void setCourseCode(String courseCode) { this.courseCode = courseCode; }
     
-    public String getSemester() { return semester; }
-    public void setSemester(String semester) { this.semester = semester; }
-    
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     
     @Override
     public String toString() {
-        return String.format("Enrollment{student=%s, course=%s, semester=%s}", 
-            studentId, courseCode, semester);
+        return String.format("Enrollment{student=%s, course=%s}", 
+            studentId, courseCode);
     }
 }

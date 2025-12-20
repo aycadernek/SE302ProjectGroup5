@@ -177,10 +177,28 @@ public class EditScheduleController {
                         throw new Exception("No data available for regeneration. Check your files.");
                     }
 
+                    // 4. Generate schedule in memory
                     com.examify.model.ExamScheduler scheduler = new com.examify.model.ExamScheduler();
                     Schedule newGen = scheduler.generateSchedule(newName, courses, classrooms, newStartDate, newEndDate, newMinSlot, newMaxSlot);
 
-                    db.finalizeScheduleUpdate(selectedSchedule.getScheduleId(), tempScheduleId, newName, newStartDate, newEndDate, newMinSlot, newMaxSlot, newGen.getExams());
+                    // IMPORTANT: Set the scheduleId for each generated exam
+                    int actualId = selectedSchedule.getScheduleId();
+                    for (com.examify.model.entities.Exam exam : newGen.getExams()) {
+                        exam.setScheduleId(actualId);
+                    }
+
+                    // 5. If generation success, finalize (replace old with new/temp)
+                    db.finalizeScheduleUpdate(actualId, tempScheduleId, newName, newStartDate, newEndDate, newMinSlot, newMaxSlot, newGen.getExams());
+                    
+                    // Update the local object state to reflect changes immediately
+                    selectedSchedule.setName(newName);
+                    selectedSchedule.setStartDate(newStartDate);
+                    selectedSchedule.setEndDate(newEndDate);
+                    selectedSchedule.setMinSlot(newMinSlot);
+                    selectedSchedule.setMaxSlot(newMaxSlot);
+                    selectedSchedule.setExams(newGen.getExams());
+                    
+                    scheduleManager.setCurrentSchedule(selectedSchedule);
                     
                     db.deleteSchedule(tempScheduleId);
                     tempScheduleId = -1;
@@ -190,8 +208,16 @@ public class EditScheduleController {
                     closeWindow();
                 }
             } else {
+                // Only name or metadata changed without regeneration
                 selectedSchedule.setName(newName);
+                selectedSchedule.setStartDate(newStartDate);
+                selectedSchedule.setEndDate(newEndDate);
+                selectedSchedule.setMinSlot(newMinSlot);
+                selectedSchedule.setMaxSlot(newMaxSlot);
+                
                 db.updateSchedule(selectedSchedule);
+                scheduleManager.setCurrentSchedule(selectedSchedule);
+                
                 showAlert(Alert.AlertType.INFORMATION, "Success", "Schedule updated.");
                 mainController.refreshData();
                 closeWindow();

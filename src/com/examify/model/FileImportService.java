@@ -166,7 +166,7 @@ public class FileImportService {
                 List<Map<String, String>> studentsToSave = studentIds.stream().map(id -> Map.of("student_id", id)).collect(Collectors.toList());
                 saveToDatabase(studentsToSave, DataType.STUDENTS, scheduleId);
 
-                List<Map<String, String>> enrollmentsToSave = studentIds.stream().map(id -> Map.of("student_id", id, "course_code", courseCode, "semester", "FALL2024")).collect(Collectors.toList());
+                List<Map<String, String>> enrollmentsToSave = studentIds.stream().map(id -> Map.of("student_id", id, "course_code", courseCode)).collect(Collectors.toList());
                 totalImported += saveToDatabase(enrollmentsToSave, DataType.ENROLLMENTS, scheduleId);
             }
             result.setSuccess(true);
@@ -400,7 +400,6 @@ public class FileImportService {
                         result.addError(lineNumber, "Course code is required for enrollment.");
                         rowIsValid = false;
                     }
-                    // Semester is optional and defaults to FALL2024, so no strict validation here unless specified otherwise
                     break;
             }
 
@@ -470,7 +469,7 @@ public class FileImportService {
     private int saveEnrollments(List<Map<String, String>> data, int scheduleId) throws SQLException {
         String insertStudentSql = "INSERT OR IGNORE INTO students (student_id) VALUES (?)";
         String insertCourseSql = "INSERT OR IGNORE INTO courses (schedule_id, course_code) VALUES (?, ?)";
-        String insertEnrollmentSql = "INSERT OR IGNORE INTO enrollments (schedule_id, student_id, course_code, semester) VALUES (?, ?, ?, ?)";
+        String insertEnrollmentSql = "INSERT OR IGNORE INTO enrollments (schedule_id, student_id, course_code) VALUES (?, ?, ?)";
         
         Connection conn = dbConnection.getConnection();
         boolean originalAutoCommit = conn.getAutoCommit();
@@ -484,7 +483,6 @@ public class FileImportService {
                 for (Map<String, String> record : data) {
                     String studentId = record.get("student_id");
                     String courseCode = record.get("course_code");
-                    String semester = record.get("semester");
                     
                     if (studentId != null && !studentId.isEmpty() && courseCode != null && !courseCode.isEmpty()) {
                         pstmtStudent.setString(1, studentId);
@@ -497,7 +495,6 @@ public class FileImportService {
                         pstmtEnrollment.setInt(1, scheduleId);
                         pstmtEnrollment.setString(2, studentId);
                         pstmtEnrollment.setString(3, courseCode);
-                        pstmtEnrollment.setString(4, semester != null ? semester.trim() : "FALL2024");
                         pstmtEnrollment.addBatch();
                     }
                 }
