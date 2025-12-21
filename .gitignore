@@ -30,3 +30,17 @@ bin/
 
 /target/
 /.idea/
+
+*.class
+*.zip
+Examify_Output/
+
+Examify_Installer/
+Examify_App/
+Examify_Baslat.bat
+Examify_Yukle.bat
+*.exe
+*.jar
+*.iss
+dependency-reduced-pom.xml
+examify.db

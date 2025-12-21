@@ -11,6 +11,27 @@ public class DatabaseConnection {
     private static final String DB_URL = "jdbc:sqlite:examify.db";
     private static final DatabaseConnection instance = new DatabaseConnection();
 
+    /* 
+    // EXE KURULUMU ICIN GEREKLI YOL (Program Files izni icin)
+    // EXE yaparken yukaridaki iki satiri yorum yapin ve asagidaki blogu acin:
+    
+    private static final String DB_URL;
+    private static final DatabaseConnection instance;
+
+    static {
+        String appDataDir = System.getenv("APPDATA");
+        if (appDataDir == null) {
+            appDataDir = System.getProperty("user.home");
+        }
+        java.io.File dir = new java.io.File(appDataDir, "Examify");
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        DB_URL = "jdbc:sqlite:" + new java.io.File(dir, "examify.db").getAbsolutePath();
+        instance = new DatabaseConnection();
+    }
+    */
+
     private Connection connection;
 
     private DatabaseConnection() {
